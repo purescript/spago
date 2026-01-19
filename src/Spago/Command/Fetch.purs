@@ -406,17 +406,8 @@ writeNewLockfile reason allTransitiveDeps = do
         dependencies <- corePackageDepsOrEmpty packageName package
         pure $ FromPath { path, dependencies }
 
-    -- For every package that is a `WorkspacePackage`, we just pick up all
-    -- transitive core and test dependencies of that package from
-    -- `allTransitiveDeps` and stick them into `core { build_plan }` and
-    -- `test { build_plan }` respectively.
     workspacePackageLockEntries = Map.fromFoldable do
-      name /\ package <- Config.workspacePackageToLockfilePackage <$> Config.getWorkspacePackages workspace.packageSet
-      let deps = allTransitiveDeps # Map.lookup name # fromMaybe { core: Map.empty, test: Map.empty }
-      pure $ name /\ package
-        { core { build_plan = Map.keys deps.core }
-        , test { build_plan = Map.keys deps.test }
-        }
+      Config.workspacePackageToLockfilePackage <$> Config.getWorkspacePackages workspace.packageSet
 
   -- For every non-workspace package, we convert it to its respective type of
   -- lockfile entry via `packageToLockEntry`.
@@ -585,27 +576,51 @@ getTransitiveDeps workspacePackage = do
   let depsRanges = (map (fromMaybe Config.widestRange) <<< unwrap) `onEachEnv` getWorkspacePackageDeps workspacePackage
   { workspace } <- ask
   case workspace.packageSet.lockfile of
-    -- If we have a lockfile we can just use that - we don't need build a plan, since we store it for every workspace
-    -- package, so we can just filter out the packages we need.
+    -- If we have a lockfile we can compute transitive deps from the lockfile data
     Right lockfile -> do
       case Map.lookup workspacePackage.package.name lockfile.workspace.packages of
         Nothing ->
           die $ "Package " <> PackageName.print workspacePackage.package.name <> " not found in lockfile"
         Just envs ->
           pure
-            { core: fromBuildPlan envs.core.build_plan
-            , test: fromBuildPlan envs.test.build_plan
+            { core: computeTransitiveDeps envs.core.dependencies
+            , test: computeTransitiveDeps envs.test.dependencies
             }
           where
-          fromBuildPlan bp = Map.union otherPackages workspacePackagesWeNeed
+          allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
+
+          -- Get direct dependencies of a package from the lockfile
+          getDeps :: PackageName -> Set PackageName
+          getDeps name = case Map.lookup name lockfile.workspace.packages of
+            Just pkg -> Set.fromFoldable $ Map.keys $ unwrap pkg.core.dependencies
+            Nothing -> Set.fromFoldable $ case Map.lookup name lockfile.packages of
+              Just (FromPath { dependencies }) -> dependencies
+              Just (FromGit { dependencies }) -> dependencies
+              Just (FromRegistry { dependencies }) -> dependencies
+              Nothing -> []
+
+          transitiveClosure :: Set PackageName -> Set PackageName
+          transitiveClosure initial = go initial initial
             where
-            allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
+            go seen new
+              | Set.isEmpty new = seen
+              | otherwise =
+                  let
+                    discovered = foldMap getDeps new `Set.difference` seen
+                  in
+                    go (seen <> discovered) discovered
 
-            isInBuildPlan :: forall v. PackageName -> v -> Boolean
-            isInBuildPlan name _package = Set.member name bp
+          computeTransitiveDeps :: Dependencies -> PackageMap
+          computeTransitiveDeps deps =
+            let
+              transitiveDeps = transitiveClosure $ Set.fromFoldable $ Map.keys $ unwrap deps
 
-            workspacePackagesWeNeed = Map.filterWithKey isInBuildPlan allWorkspacePackages
-            otherPackages = map fromLockEntry $ Map.filterWithKey isInBuildPlan lockfile.packages
+              isInTransitiveDeps :: forall v. PackageName -> v -> Boolean
+              isInTransitiveDeps name _ = Set.member name transitiveDeps
+            in
+              Map.union
+                (Map.filterWithKey isInTransitiveDeps allWorkspacePackages)
+                (map fromLockEntry $ Map.filterWithKey isInTransitiveDeps lockfile.packages)
 
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
     Left _ -> case workspace.packageSet.buildType of

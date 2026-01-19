@@ -6,25 +6,19 @@
         "core": {
           "dependencies": [
             "prelude"
-          ],
-          "build_plan": [
-            "prelude"
           ]
         },
         "test": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         }
       },
       "root": {
         "path": "./",
         "core": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         },
         "test": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         }
       }
     },
