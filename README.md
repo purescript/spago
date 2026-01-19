@@ -1394,12 +1394,12 @@ workspace:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
 
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.
@@ -1450,12 +1450,12 @@ package:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
     # Convert compiler warnings for files in this package's src code
     # into errors that can fail the build.
     # Optional and defaults to false
@@ -1518,12 +1518,12 @@ package:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
     # Convert compiler warnings for files from this package's test code
     # into errors that can fail the build.
     # Optional and defaults to false

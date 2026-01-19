@@ -189,8 +189,27 @@ shouldPrintWarning = case _ of
       let
         tests = arr <#> case _ of
           ByCode c -> \code _ -> c == code
-          ByMessagePrefix prefix -> \_ msg -> isJust $ String.stripPrefix (String.Pattern $ String.trim prefix) (String.trim msg)
+          ByMessagePrefix prefix -> \code msg ->
+            let
+              trimmedPrefix = String.trim prefix
+              trimmedMsg = String.trim msg
+              -- Try direct match first
+              directMatch = isJust $ String.stripPrefix (String.Pattern trimmedPrefix) trimmedMsg
+              -- For UserDefinedWarning, also try matching without the compiler preamble
+              strippedMatch = code == "UserDefinedWarning"
+                && isJust (String.stripPrefix (String.Pattern trimmedPrefix) (stripUserWarningPreamble trimmedMsg))
+            in
+              directMatch || strippedMatch
       -- We return `true` to print the warning.
       -- If an element was found (i.e. `Just` is returned), then one of the tests succeeded,
       -- so we should not print the warning and return false here.
       \code msg -> isNothing $ NonEmptyArray.find (\f -> f code msg) tests
+
+-- | Strip the preamble that the PureScript compiler adds to UserDefinedWarning messages.
+-- | This allows byPrefix to match just the user-defined content.
+stripUserWarningPreamble :: String -> String
+stripUserWarningPreamble msg =
+  let preamble = "A custom warning occurred while solving type class constraints:"
+  in case String.stripPrefix (String.Pattern preamble) msg of
+    Just rest -> String.trim rest
+    Nothing -> msg
