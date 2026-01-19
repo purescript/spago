@@ -1,0 +1,11 @@
+package:
+  name: packagec
+  dependencies:
+    - maybe
+    - packageb
+workspace:
+  packageSet:
+    registry: 58.0.1
+  extraPackages:
+    packageb:
+      path: ../packageb
