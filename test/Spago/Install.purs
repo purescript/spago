@@ -332,17 +332,18 @@ forceResetSpec = Spec.around withTempDir do
 
       -- 2. Clone, make commits, push
       let workRepo = testCwd </> "work"
+      let gitInWorkRepo = git' (Just $ Path.toGlobal workRepo)
       git [ "clone", Path.toRaw originRepo, Path.toRaw workRepo ]
-      git' (Just $ Path.toGlobal workRepo) [ "config", "user.name", "test" ]
-      git' (Just $ Path.toGlobal workRepo) [ "config", "user.email", "test@test.com" ]
-      git' (Just $ Path.toGlobal workRepo) [ "checkout", "-b", "main" ]
+      gitInWorkRepo [ "config", "user.name", "test" ]
+      gitInWorkRepo [ "config", "user.email", "test@test.com" ]
+      gitInWorkRepo [ "checkout", "-b", "main" ]
       FS.writeTextFile (workRepo </> "file1.txt") "content1"
-      git' (Just $ Path.toGlobal workRepo) [ "add", "." ]
-      git' (Just $ Path.toGlobal workRepo) [ "commit", "-m", "first" ]
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "first" ]
       FS.writeTextFile (workRepo </> "file2.txt") "content2"
-      git' (Just $ Path.toGlobal workRepo) [ "add", "." ]
-      git' (Just $ Path.toGlobal workRepo) [ "commit", "-m", "second" ]
-      git' (Just $ Path.toGlobal workRepo) [ "push", "-u", "origin", "main" ]
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "second" ]
+      gitInWorkRepo [ "push", "-u", "origin", "main" ]
 
       -- 3. Clone again (simulating spago's cached registry)
       let cachedRepo = testCwd </> "cached"
@@ -351,16 +352,16 @@ forceResetSpec = Spec.around withTempDir do
       -- 4. Add another commit to origin that modifies an existing file
       -- Now cached is behind and has different content
       FS.writeTextFile (workRepo </> "file2.txt") "content2-updated"
-      git' (Just $ Path.toGlobal workRepo) [ "add", "." ]
-      git' (Just $ Path.toGlobal workRepo) [ "commit", "-m", "third" ]
-      git' (Just $ Path.toGlobal workRepo) [ "push", "origin", "main" ]
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "third" ]
+      gitInWorkRepo [ "push", "origin", "main" ]
 
       -- 5. Squash all history and force push (simulating registry squash)
       -- Now origin has: first -> second -> third (with updated file2), squashed to single commit
       -- But cached only has: first -> second (with original file2)
-      git' (Just $ Path.toGlobal workRepo) [ "reset", "--soft", "HEAD~2" ]
-      git' (Just $ Path.toGlobal workRepo) [ "commit", "--amend", "-m", "squashed all history" ]
-      git' (Just $ Path.toGlobal workRepo) [ "push", "--force", "origin", "main" ]
+      gitInWorkRepo [ "reset", "--soft", "HEAD~2" ]
+      gitInWorkRepo [ "commit", "--amend", "-m", "squashed all history" ]
+      gitInWorkRepo [ "push", "--force", "origin", "main" ]
 
       -- 6. fetchRepo should succeed despite the history rewrite and different content
       -- because git pull --rebase can handle rebasing onto a squashed history
