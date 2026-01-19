@@ -1,0 +1,15 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.
+
+
+✘ The registry only supports packages hosted on GitHub at the moment.
+Cannot publish this package because it is hosted at https://not.git-hub.net/foo/bar.git

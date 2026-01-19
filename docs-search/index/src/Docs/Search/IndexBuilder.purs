@@ -1,11 +1,14 @@
-module Docs.Search.IndexBuilder where
+module Docs.Search.IndexBuilder
+  ( run
+  , patchHtml
+  , getPathsByGlobs
+  ) where
 
 import Prelude
 
 import Codec.JSON.DecodeError as CJ.DecodeError
 import Codec.Json.Unidirectional.Value as CJ.Codec
 import Data.Argonaut.Core (Json)
-import Data.Array (concat)
 import Data.Array as Array
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
@@ -20,6 +23,7 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Profunctor.Choice (left)
 import Data.Search.Trie as Trie
+import Data.Set (Set)
 import Data.Set as Set
 import Data.String.CodePoints (contains) as String
 import Data.String.CodeUnits (singleton) as String
@@ -29,15 +33,13 @@ import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(..), fst)
 import Data.Tuple.Nested ((/\))
 import Docs.Search.Config as Config
-import Docs.Search.Declarations (Declarations(..), mkDeclarations)
+import Docs.Search.Declarations (Declarations(..))
+import Docs.Search.Declarations as Declarations
 import Docs.Search.DocTypes (DocModule)
 import Docs.Search.DocTypes as Docs
 import Docs.Search.Extra ((>#>))
-import Docs.Search.Meta (Meta)
-import Docs.Search.Meta as Meta
 import Docs.Search.ModuleIndex (PackedModuleIndex)
 import Docs.Search.ModuleIndex as ModuleIndex
-import Docs.Search.ModuleParser as ModuleParser
 import Docs.Search.PackageIndex (PackageInfo)
 import Docs.Search.PackageIndex as PackageIndex
 import Docs.Search.Score (mkScores)
@@ -45,11 +47,10 @@ import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.SearchResult as SearchResult
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.TypeIndex as TypeIndex
-import Docs.Search.Types (ModuleName, PackageName, PartId)
+import Docs.Search.Types (PartId)
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_, parallel, sequential)
+import Effect.Aff (Aff, parallel, sequential)
 import Effect.Class (liftEffect)
-import Effect.Console (log)
 import JSON (JSON)
 import JSON as JSON
 import Node.Encoding (Encoding(UTF8))
@@ -57,84 +58,76 @@ import Node.FS.Aff (mkdir, readFile, readTextFile, readdir, stat, writeFile, wri
 import Node.FS.Stats (isDirectory, isFile)
 import Node.FS.Sync (exists)
 import Node.Path as Path
-import Node.Process as Process
+import Registry.Manifest (Manifest(..))
+import Registry.Manifest as Manifest
+import Registry.PackageName (PackageName)
+import Spago.Purs.Types as Graph
 import Unsafe.Coerce (unsafeCoerce)
-import Web.Bower.PackageMeta (PackageMeta(..))
 
 type Config =
   { docsFiles :: Array String
-  , bowerFiles :: Array String
+  , pursJsonFiles :: Array String
   , generatedDocs :: String
-  , packageName :: PackageName
-  , sourceFiles :: Array String
+  , workspacePackages :: Set PackageName
+  , moduleGraph :: Graph.ModuleGraphWithPackage
+  , log :: String -> Aff Unit
+  , die :: String -> Aff Unit
   }
 
-run :: Config -> Effect Unit
-run = launchAff_ <<< run'
-
-run' :: Config -> Aff Unit
-run' cfg = do
+run :: Config -> Aff Unit
+run cfg@{ log } = do
 
   checkDirectories cfg
 
-  liftEffect do
-    log "Building the search index..."
+  log "Building the search index..."
 
-  docsJsons /\ moduleNames /\ packageMetas <- sequential $
-    (\d h m -> d /\ h /\ m)
+  docsJsons /\ packageMetas <- sequential $
+    Tuple
       <$> parallel (decodeDocsJsons cfg)
-      <*> parallel (parseModuleHeaders cfg.sourceFiles)
-      <*> parallel (decodeBowerJsons cfg)
+      <*> parallel (decodePursJsons cfg)
 
   let
     countOfPackages = Array.length packageMetas
     countOfModules = Array.length docsJsons
 
-  liftEffect do
-    log $
-      "Indexing "
-        <> show countOfModules
-        <> " modules from "
-        <> show countOfPackages
-        <> " packages..."
+  log $
+    "Indexing "
+      <> show countOfModules
+      <> " modules from "
+      <> show countOfPackages
+      <> " packages..."
 
   let
     scores = mkScores packageMetas
-    index = mkDeclarations scores docsJsons
-    typeIndex = TypeIndex.mkTypeIndex scores docsJsons
+    index = Declarations.mkDeclarations cfg.moduleGraph cfg.workspacePackages scores docsJsons
+    typeIndex = TypeIndex.mkTypeIndex cfg.moduleGraph cfg.workspacePackages scores docsJsons
     packageInfo = PackageIndex.mkPackageInfo scores packageMetas
-    moduleIndex = ModuleIndex.mkPackedModuleIndex index moduleNames
-    meta = { localPackageName: cfg.packageName }
+    moduleIndex = ModuleIndex.mkPackedModuleIndex cfg.moduleGraph cfg.workspacePackages index
 
   createDirectories cfg
 
-  void $ sequential do
-    ignore <$> parallel (writeIndex cfg index)
-      <*> parallel (writeTypeIndex typeIndex)
-      <*> parallel (writePackageInfo packageInfo)
-      <*> parallel (writeModuleIndex moduleIndex)
-      <*> parallel (writeMeta meta)
-      <*> parallel (patchDocs cfg)
-      <*> parallel (copyAppFile cfg)
+  sequential $
+    parallel (writeIndex cfg index)
+      *> parallel (writeTypeIndex typeIndex)
+      *> parallel (writePackageInfo packageInfo)
+      *> parallel (writeModuleIndex moduleIndex)
+      *> parallel (patchDocs cfg)
+      *> parallel (copyAppFile cfg)
 
   let
     countOfDefinitions = Trie.size $ unwrap index
     countOfTypeDefinitions =
       sum $ fromMaybe 0 <$> map Array.length <$> Map.values (unwrap typeIndex)
 
-  liftEffect do
-    log $
-      "Added "
-        <> show countOfDefinitions
-        <> " definitions and "
-        <> show countOfTypeDefinitions
-        <> " type definitions from "
-        <> show countOfPackages
-        <>
-          " packages to the search index."
-
-  where
-  ignore _ _ _ _ _ _ _ = unit
+  log $
+    "Added "
+      <> show countOfDefinitions
+      <> " definitions and "
+      <> show countOfTypeDefinitions
+      <> " type definitions from "
+      <> show countOfPackages
+      <>
+        " packages to the search index."
 
 -- | Exit early if something is missing.
 checkDirectories :: Config -> Aff Unit
@@ -148,23 +141,20 @@ checkDirectories cfg = do
 
   for_ dirs \dir -> do
     whenM (not <$> directoryExists dir) $
-      liftEffect do
-        logAndExit "Build the documentation first!"
+      cfg.die "Build the documentation first!"
 
 -- | Read and decode given `docs.json` files.
 decodeDocsJsons
-  :: forall rest
-   . { docsFiles :: Array String | rest }
+  :: ∀ rest
+   . { docsFiles :: Array String, log :: String -> Aff Unit, die :: String -> Aff Unit | rest }
   -> Aff (Array DocModule)
-decodeDocsJsons cfg@{ docsFiles } = do
+decodeDocsJsons cfg@{ docsFiles, log } = do
 
   paths <- getPathsByGlobs docsFiles
 
   when (Array.null paths) do
-    liftEffect do
-      logAndExit $
-        "The following globs do not match any files: " <> showGlobs cfg.docsFiles <>
-          ".\nBuild the documentation first!"
+    cfg.die $
+      "The following globs do not match any files: " <> showGlobs cfg.docsFiles <> ".\nBuild the documentation first!"
 
   docsJsons <- Array.catMaybes <$> for paths \jsonFile -> do
     doesExist <- fileExists jsonFile
@@ -180,79 +170,50 @@ decodeDocsJsons cfg@{ docsFiles } = do
 
       case eiResult of
         Left error -> do
-          liftEffect $ log $
-            "\"docs.json\" decoding failed failed for " <> jsonFile <> ": " <> error
+          log $ "\"docs.json\" decoding failed failed for " <> jsonFile <> ": " <> error
           pure Nothing
         Right result -> pure $ Just result
 
     else do
-      liftEffect $ do
-        log $
-          "File does not exist: " <> jsonFile
+      log $ "File does not exist: " <> jsonFile
       pure Nothing
 
   when (Array.null docsJsons) do
-    liftEffect $ logAndExit $
+    cfg.die $
       "Couldn't decode any of the files matched by the following globs: " <> showGlobs cfg.docsFiles
 
   pure docsJsons
 
--- | This function accepts an array of globs pointing to project sources
--- | and returns a list of module names extracted from these files.
--- | Unfortunately, we can't get all module names from `docs.json`s, because
--- | reexport-only modules do not have a single declaration in them, so we can't
--- | count them normally in `mkPackedModuleIndex.extract`, where we only look at
--- | exported declarations.
-parseModuleHeaders :: Array String -> Aff (Array ModuleName)
-parseModuleHeaders globs = do
-  files <- getPathsByGlobs globs
-
-  -- we are not checking if the globs match at least one file, because
-  -- we want to support scenarios where there is no "current project"
-
-  concat <$> for files \filePath -> do
-    fileContents <- readTextFile UTF8 filePath
-    case ModuleParser.parseModuleName fileContents of
-      Nothing -> do
-        liftEffect $ log $
-          "Module header decoding failed for " <> filePath <>
-            ", unable to extract module name"
-        pure []
-      Just res -> pure [ res ]
-
-decodeBowerJsons
-  :: forall rest
-   . { bowerFiles :: Array String | rest }
-  -> Aff (Array PackageMeta)
-decodeBowerJsons { bowerFiles } = do
-  paths <- getPathsByGlobs bowerFiles
+decodePursJsons
+  :: ∀ rest
+   . { pursJsonFiles :: Array String, log :: String -> Aff Unit, die :: String -> Aff Unit | rest }
+  -> Aff (Array Manifest)
+decodePursJsons cfg@{ pursJsonFiles } = do
+  paths <- getPathsByGlobs pursJsonFiles
 
   when (Array.null paths) do
-    liftEffect do
-      logAndExit $
-        "The following globs do not match any files: " <> showGlobs bowerFiles <>
-          ".\nAre you in a project directory?"
-
+    cfg.die $
+      "The following globs do not match any files: " <> showGlobs pursJsonFiles <>
+        ".\nAre you in a project directory?"
   Array.nubBy compareNames
     <$> Array.catMaybes
     <$>
       for paths \jsonFileName ->
-        join <$> withExisting jsonFileName
+        join <$> withExisting cfg jsonFileName
           \contents ->
             either (logError jsonFileName) (pure <<< Just)
               ( JSON.parse contents >>=
-                  CJ.decode (PackageIndex.packageMetaCodec) >>>
+                  CJ.decode Manifest.codec >>>
                     left CJ.DecodeError.print
               )
 
   where
   compareNames
-    (PackageMeta { name: name1 })
-    (PackageMeta { name: name2 }) = compare name1 name2
+    (Manifest { name: name1 })
+    (Manifest { name: name2 }) = compare name1 name2
 
   logError fileName error = do
-    liftEffect $ log $
-      "\"bower.json\" decoding failed for " <> fileName <> ": " <> error
+    cfg.log $ "\"purs.json\" decoding failed for " <> fileName <> ": " <> error
     pure Nothing
 
 -- | Write type index parts to files.
@@ -260,7 +221,7 @@ writeTypeIndex :: TypeIndex -> Aff Unit
 writeTypeIndex typeIndex =
   for_ entries \(Tuple typeShape results) -> do
     writeTextFile UTF8 (unwrap Config.typeIndexDirectory <> "/" <> typeShape <> ".js")
-      (mkHeader typeShape <> JSON.print (CJ.encode codec results))
+      (mkHeader typeShape <> JSON.print (CJ.encode codec $ fromMaybe [] results))
   where
   mkHeader typeShape =
     "// This file was generated by docs-search\n"
@@ -268,7 +229,7 @@ writeTypeIndex typeIndex =
       <> typeShape
       <> "\"] = "
 
-  codec = CJ.Common.maybe $ CJ.array SearchResult.searchResultCodec
+  codec = CJ.array SearchResult.searchResultCodec
 
   entries :: Array _
   entries = Map.toUnfoldableUnordered (unwrap typeIndex)
@@ -288,13 +249,6 @@ writeModuleIndex moduleIndex = do
     header <> JSON.print (CJ.encode ModuleIndex.packedModuleIndexCodec moduleIndex)
   where
   header = "window.DocsSearchModuleIndex = "
-
-writeMeta :: Meta -> Aff Unit
-writeMeta meta = do
-  writeTextFile UTF8 (unwrap Config.metaPath) $
-    header <> JSON.print (CJ.encode Meta.metaCodec meta)
-  where
-  header = "window." <> unwrap Config.metaItem <> " = "
 
 -- | Get a mapping from index parts to index contents.
 getIndex :: Declarations -> Map PartId (Array (Tuple String (Array SearchResult)))
@@ -384,18 +338,18 @@ patchDocs cfg = do
 -- | Create directories for two indices, or fail with a message
 -- | in case the docs were not generated.
 createDirectories :: Config -> Aff Unit
-createDirectories { generatedDocs } = do
+createDirectories { generatedDocs, die } = do
   let
     htmlDocs = Path.concat [ generatedDocs, "html" ]
     indexDir = Path.concat [ generatedDocs, "html", "index" ]
     declIndexDir = Path.concat [ generatedDocs, "html", "index", "declarations" ]
     typeIndexDir = Path.concat [ generatedDocs, "html", "index", "types" ]
 
-  whenM (not <$> directoryExists generatedDocs) $ liftEffect do
-    logAndExit "Generate the documentation first!"
+  whenM (not <$> directoryExists generatedDocs) $
+    die "Generate the documentation first!"
 
-  whenM (not <$> directoryExists htmlDocs) $ liftEffect do
-    logAndExit "Generate the documentation first!"
+  whenM (not <$> directoryExists htmlDocs) $
+    die "Generate the documentation first!"
 
   whenM (not <$> directoryExists indexDir) do
     mkdir indexDir
@@ -409,13 +363,13 @@ createDirectories { generatedDocs } = do
 -- | Copy the client-side application, responsible for handling user input and rendering
 -- | the results, to the destination path.
 copyAppFile :: Config -> Aff Unit
-copyAppFile { generatedDocs } = do
+copyAppFile { generatedDocs, die } = do
   appFile <- liftEffect getDocsSearchAppPath
-  whenM (not <$> fileExists appFile) do
-    liftEffect do
-      logAndExit $
-        "Client-side app was not found at " <> appFile <> ".\n" <>
-          "Check your installation."
+  unlessM (fileExists appFile)
+    $ die
+    $
+      "Client-side app was not found at " <> appFile <> ".\n" <>
+        "Check your installation."
   buffer <- readFile appFile
   writeFile (Path.concat [ generatedDocs, "html", "docs-search-app.js" ]) buffer
 
@@ -433,8 +387,8 @@ fileExists path = do
     false -> pure false
     true -> isFile <$> stat path
 
-withExisting :: forall a. String -> (String -> Aff a) -> Aff (Maybe a)
-withExisting file f = do
+withExisting :: ∀ a r. { log :: String -> Aff Unit | r } -> String -> (String -> Aff a) -> Aff (Maybe a)
+withExisting cfg file f = do
   doesExist <- fileExists file
 
   if doesExist then do
@@ -442,15 +396,8 @@ withExisting file f = do
     res <- f contents
     pure $ Just res
   else do
-    liftEffect $ do
-      log $
-        "File does not exist: " <> file
+    cfg.log $ "File does not exist: " <> file
     pure Nothing
-
-logAndExit :: forall a. String -> Effect a
-logAndExit message = do
-  log message
-  Process.exit' 1
 
 showGlobs :: Array String -> String
 showGlobs = Array.intercalate ", "

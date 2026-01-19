@@ -1,5 +1,5 @@
 package:
-  name: aaa
+  name: aff
   dependencies:
     - console: ">=6.0.0 <7.0.0"
     - effect: ">=4.0.0 <5.0.0"
@@ -12,7 +12,7 @@ package:
     license: MIT
     location:
       githubOwner: purescript
-      githubRepo: aaa
+      githubRepo: purescript-aff
 workspace:
   packageSet:
     registry: 28.1.1

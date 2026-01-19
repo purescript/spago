@@ -4,9 +4,9 @@ import Test.Prelude
 
 import Data.Array as Array
 import Data.Map as Map
-import Node.Path as Path
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.FS as FS
+import Spago.Paths as Paths
 import Test.Spec (SpecT)
 import Test.Spec as Spec
 
@@ -18,8 +18,8 @@ spec =
 
       -- Here we are importing the `Control.Alt` module, which is in the `control`
       -- package, which comes through `maybe` but we are not importing directly
-      Spec.it "appear in the source package" \{ spago, fixture } -> do
-        setup spago
+      Spec.it "appear in the source package" \{ spago, fixture, testCwd } -> do
+        setup testCwd spago
           ( defaultSetupConfig
               { installSourcePackages = [ "maybe" ]
               , main = Just
@@ -41,8 +41,8 @@ spec =
       -- We are importing `Control.Alt` in the test package, which is in the `control`
       -- package, which comes through `maybe` but we are not importing directly, so we
       -- should get a transitivity warning about that
-      Spec.it "appear in the test package" \{ spago, fixture } -> do
-        setup spago
+      Spec.it "appear in the test package" \{ spago, fixture, testCwd } -> do
+        setup testCwd spago
           ( defaultSetupConfig
               { installTestPackages = [ "maybe" ]
               , main = Just
@@ -76,8 +76,8 @@ spec =
 
       -- Here we install `effect` and `console` in the test package, and we don't use them
       -- in the source, so we should get an "unused" warning about them
-      Spec.it "in a source package" \{ spago, fixture } -> do
-        setup spago
+      Spec.it "in a source package" \{ spago, fixture, testCwd } -> do
+        setup testCwd spago
           ( defaultSetupConfig
               { installTestPackages = [ "effect", "console" ]
               , main = Just
@@ -93,8 +93,8 @@ spec =
       -- Here we do not install `effect` and `console` in the test package, and we don't use them
       -- in the source, so we should get an "unused" warning about them for the source, and a prompt
       -- to install them in test
-      Spec.it "in a source package, but they are used in test" \{ spago, fixture } -> do
-        setup spago
+      Spec.it "in a source package, but they are used in test" \{ spago, fixture, testCwd } -> do
+        setup testCwd spago
           ( defaultSetupConfig
               { main = Just
                   [ "import Prelude"
@@ -107,8 +107,8 @@ spec =
         spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency.txt")
 
       -- Complain about the unused `newtype` dependency in the test package
-      Spec.it "in a test package" \{ spago, fixture } -> do
-        setup spago
+      Spec.it "in a test package" \{ spago, fixture, testCwd } -> do
+        setup testCwd spago
           ( defaultSetupConfig
               { installTestPackages = [ "newtype" ]
               , testMain = Just
@@ -126,8 +126,8 @@ spec =
           >>= shouldBeFailureErr (fixture "pedantic/check-unused-test-dependency.txt")
 
       -- `console` and `effect` are going to be unused for both source and test packages
-      Spec.it "in both the source and test packages" \{ spago, fixture } -> do
-        setup spago
+      Spec.it "in both the source and test packages" \{ spago, fixture, testCwd } -> do
+        setup testCwd spago
           ( defaultSetupConfig
               { installSourcePackages = [ "prelude", "effect", "console" ]
               , installTestPackages = [ "prelude", "effect", "console" ]
@@ -157,8 +157,8 @@ spec =
     --   so consider that fixed
     -- * `either` is transitively imported, and it's going to be removed from the source
     --   dependencies, so we get a "transitive" warning to install it in test
-    Spec.it "fails to build and reports deduplicated src and test unused/transitive dependencies" \{ spago, fixture } -> do
-      setup spago
+    Spec.it "fails to build and reports deduplicated src and test unused/transitive dependencies" \{ spago, fixture, testCwd } -> do
+      setup testCwd spago
         ( defaultSetupConfig
             { installSourcePackages = [ "prelude", "control", "either" ]
             , installTestPackages = [ "tuples" ]
@@ -191,8 +191,8 @@ spec =
     -- So, if we don't have `effect` as a direct dependency, we'll get a pedantic error
     -- where the fix is to install that missing package.
     -- Following those instructions shouldn't cause an error.
-    Spec.it "following installation instructions does not fail with an unrelated pedantic error" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "pedantic/follow-instructions", dst: "." }
+    Spec.it "following installation instructions does not fail with an unrelated pedantic error" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "pedantic/follow-instructions", dst: testCwd }
       spago [ "uninstall", "effect" ] >>= shouldBeSuccess
       -- Get rid of "Compiling..." messages
       spago [ "build" ] >>= shouldBeSuccess
@@ -204,16 +204,28 @@ spec =
     let gitignores = [".spago", "/.spago", ".spago/**"]
     for_ gitignores \gitignore ->
       Spec.it
-        (".gitignore does not affect discovery of transitive deps (" <> gitignore <> ")")
-        \{ spago, fixture } -> do
-          FS.copyTree { src: fixture "pedantic/follow-instructions", dst: "." }
-          FS.writeTextFile ".gitignore" gitignore
+        (".gitignore does not affect discovery of transitive deps (" <> gitignore <> ")") \{ spago, fixture, testCwd } -> do
+          FS.copyTree { src: fixture "pedantic/follow-instructions", dst: testCwd }
+          FS.writeTextFile (testCwd </> ".gitignore") gitignore
           spago [ "uninstall", "effect" ] >>= shouldBeSuccess
           -- Get rid of "Compiling..." messages
           spago [ "build" ] >>= shouldBeSuccess
           editSpagoYaml (addPedanticFlagToSrc)
           spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
           spago [ "install", "-p", "follow-instructions", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
+
+    Spec.it "#1281 treats extra-packages on the local file system as used" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "pedantic/1281-local-fs-extra-packages", dst: testCwd }
+
+      Paths.chdir $ testCwd </> "packagea"
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "build", "--pedantic-packages" ]
+        >>= shouldBeSuccessErr (fixture "pedantic/1281-local-fs-extra-packages/expected-stderr-used.txt")
+
+      Paths.chdir $ testCwd </> "packagec"
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "build", "--pedantic-packages" ]
+        >>= shouldBeFailureErr (fixture "pedantic/1281-local-fs-extra-packages/expected-stderr-unused.txt")
 
 addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config
@@ -255,16 +267,16 @@ defaultSetupConfig =
   , testMain: Nothing
   }
 
-setup :: (Array String -> Aff (Either ExecResult ExecResult)) -> SetupConfig -> Aff Unit
-setup spago config = do
+setup :: RootPath -> (Array String -> Aff (Either ExecResult ExecResult)) -> SetupConfig -> Aff Unit
+setup root spago config = do
   spago [ "init", "--name", "pedantic" ] >>= shouldBeSuccess
   unless (Array.null config.installSourcePackages) do
     spago ([ "install" ] <> config.installSourcePackages) >>= shouldBeSuccess
   unless (Array.null config.installTestPackages) do
     spago ([ "install", "--test-deps" ] <> config.installTestPackages) >>= shouldBeSuccess
   for_ config.main \main ->
-    FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain main
+    FS.writeTextFile (root </> "src" </> "Main.purs") $ writeMain main
   for_ config.testMain \testMain ->
-    FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain testMain
+    FS.writeTextFile (root </> "test" </> "Test" </> "Main.purs") $ writeTestMain testMain
   -- get rid of "Compiling ..." messages and other compiler warnings
   spago [ "build" ] >>= shouldBeSuccess

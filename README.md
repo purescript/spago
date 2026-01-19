@@ -1,7 +1,7 @@
 # spago
 
-[![npm](https://img.shields.io/npm/v/spago.svg)][spago-npm]
-[![Latest release](https://img.shields.io/github/v/release/purescript/spago.svg)](https://github.com/purescript/spago/releases)
+![NPM Version (with dist tag)](https://img.shields.io/npm/v/spago/next)
+![Latest release](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpurescript%2Fspago%2Frefs%2Fheads%2Fmaster%2Fspago.yaml&query=package.publish.version&prefix=v&label=release)
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![nix-flake](https://github.com/purescript/spago/actions/workflows/nix-flake.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/nix-flake.yml)
 [![Maintainer: f-f](https://img.shields.io/badge/maintainer-f%2d-f-teal.svg)](http://github.com/f-f)
@@ -130,6 +130,7 @@ Where to go from here? There are a few places you should check out:
   - [Querying package sets](#querying-package-sets)
   - [Upgrading packages and the package set](#upgrading-packages-and-the-package-set)
   - [Custom package sets](#custom-package-sets)
+  - [Graph the project modules and dependencies](#graph-the-project-modules-and-dependencies)
   - [Monorepo support](#monorepo-support)
   - [Polyrepo support](#polyrepo-support)
   - [Test dependencies](#test-dependencies)
@@ -142,6 +143,9 @@ Where to go from here? There are a few places you should check out:
   - [Generate documentation for my project](#generate-documentation-for-my-project)
   - [Alternate backends](#alternate-backends)
   - [Publish my library](#publish-my-library)
+    - [Publish many packages together](#publish-many-packages-together)
+  - [Authenticated commands](#authenticated-commands)
+    - [Transfer my package to a new owner](#transfer-my-package-to-a-new-owner)
   - [Know which `purs` commands are run under the hood](#know-which-purs-commands-are-run-under-the-hood)
   - [Install autocompletions for `bash`](#install-autocompletions-for-bash)
   - [Install autocompletions for `zsh`](#install-autocompletions-for-zsh)
@@ -151,10 +155,12 @@ Where to go from here? There are a few places you should check out:
   - [The workspace](#the-workspace)
   - [The configuration file](#the-configuration-file)
   - [The lock file](#the-lock-file)
+  - [File System Paths used in Spago](#file-system-paths-used-in-spago)
 - [FAQ](#faq)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
-- [Differences from legacy spago](#differences-from-legacy-spago)
-  - [Watch mode](#watch-mode)
+  - [Differences from legacy spago](#differences-from-legacy-spago)
+    - [Watch mode](#watch-mode)
+    - [`sources` in the configuration file](#sources-in-the-configuration-file)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -281,6 +287,14 @@ You can ask Spago to come up with a good set of bounds for you by running:
 
 ```console
 $ spago install --ensure-ranges
+```
+
+You can specify your version ranges manually in the `spago.yaml` configuration file too:
+
+```yaml
+package:
+  dependencies:
+    - lists: ">=7.0.0 <8.0.0"
 ```
 
 ### Install a direct dependency
@@ -492,6 +506,7 @@ In this case we override the package with its local copy, which should have a `s
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     aff:
@@ -524,6 +539,7 @@ In this case, we can just change the override to point to some commit of our for
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     aff:
@@ -546,7 +562,8 @@ There are a few possible scenarios - the most straightforward is when a package 
 
 ```
 workspace:
-  registry: 41.2.0
+  packageSet:
+    registry: 41.2.0
   extraPackages:
     some-package-from-the-registry: 4.0.0
 ```
@@ -555,6 +572,7 @@ Another possibility is that the package is not in the registry (maybe it's your 
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     facebook:
@@ -570,6 +588,7 @@ The last possible case is the one picking up a local folder as a package (note: 
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     facebook:
@@ -640,9 +659,9 @@ This package set could look something like this:
 
 ```js
 {
-  compiler: "0.15.10",
-  version: "0.0.1",
-  packages: {
+  "compiler": "0.15.10",
+  "version": "0.0.1",
+  "packages": {
     "some-registry-package": "1.0.2",
     "some-package-from-git-with-a-spago-yaml": {
       "git": "https://github.com/purescript/registry-dev.git",
@@ -667,7 +686,7 @@ Something like this:
     "repo": "https://github.com/purescript/purescript-prelude.git",
     "version": "v6.0.1",
     "dependencies": ["prelude", "effect", "console"]
-  }
+  },
   "metadata": {
     "repo": "https://github.com/purescript/metadata.git",
     "version": "v0.15.10",
@@ -817,6 +836,9 @@ The `--package` flag is also available for many more commands, such as `build`, 
 
 An important property of this "monorepo setup" is that the `output` folder will be shared between all the packages: they will share the same build package set (or build plan when using the solver) and they will be all build together.
 
+> [!NOTE]\
+> Remember that you can't have multiple modules with the same name in a single project. This usually happens with the `Main` module being defined multiple times. Rename these modules to something unique.
+
 ### Polyrepo support
 
 There might be cases where you want to have multiple loosely-connected codebases in the same repository that do _not_ necessarily build together all the time. This is sometimes called [a "polyrepo"][monorepo-tools].
@@ -945,7 +967,7 @@ See the help message for more flags, and [the configuration format section](#the
 When bundling an `app`, the output will be a single executable file:
 
 ```console
-$ spago bundle --to index.js --bundle-type app --platform node
+$ spago bundle --outfile index.js --bundle-type app --platform node
 
 # It is then possible to run it with node:
 $ node index.js
@@ -1091,6 +1113,29 @@ workspace:
 ```
 > [!NOTE]\
 > This only works when the package you add to `extraPackages` has been published to the registry. Adding a git dependency will produce an error, as publishing to the Registry only admits build plans that only contain packages coming from the Registry.
+
+### Authenticated commands
+
+The Registry does not need authentication when publishing new versions of a package, but it does need it when issuing
+operations that modify existing packages, [such as location transfer or unpublishing](registry-dev-auth).
+
+This authentication happens through SSH keys: by having your public key in a published version, the Registry can then
+authenticate requests that are signed with your private key.
+
+Authentication and operations that use it are automated by Spago, through the `spago auth` command: if you'd like to
+be able to perform authenticated operations you need a SSH keypair, and run `spago auth` passing those keys in.
+This will populate the `package.publish.owners` field in the `spago.yaml` - commit that and publish a new version,
+and from that moment you'll be able to perform authenticated operations on this package.
+
+#### Transfer my package to a new owner
+
+If you are the owner of a package and you want to transfer it to another user, you'd need to inform the Registry
+about the new location of the repository, so that the new owner will be able to publish new versions of the package.
+
+The transfer procedure is automated by Spago commands, and goes as follows:
+* Add your (or the new owner's) SSH public key to the `spago.yaml` through `spago auth` if they are not there already (see previous section)
+* Transfer the repository to the new owner using the hosting platform's transfer mechanism (e.g. GitHub's transfer feature)
+* Depending on whose key is present in the `owners` field, either you or the new owner will update the `publish.location` field in the `spago.yaml`, and call `spago registry transfer` to initiate the transfer. If all goes well you'll now be able to publish a new version from the new location.
 
 ### Know which `purs` commands are run under the hood
 
@@ -1580,9 +1625,9 @@ packages, you should run the appropriate package-manager for that (e.g. npm).
 
 Spago dropped support for the --watch flag in `spago build` and `spago test`.
 
-VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
+VSCode users are recommended to use the [Purescript IDE][ide-purescript] extension for seamless experiences with automatic rebuilds.
 
-Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin](purescript-language-server).
+Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin][purescript-language-server].
 
 If you want a very simple drop in replacement for `spago test --watch`, you can use a general purpose tool such as [watchexec]:
 
@@ -1619,5 +1664,6 @@ and similarly for the `test` folder, using that for the test sources.
 [purescript-overlay]: https://github.com/thomashoneyman/purescript-overlay
 [sample-package-set]: https://github.com/purescript/registry/blob/main/package-sets/41.2.0.json
 [watchexec]: https://github.com/watchexec/watchexec#quick-start
-[purescript-langugage-server]: https://github.com/nwolverson/purescript-language-server
+[purescript-language-server]: https://github.com/nwolverson/purescript-language-server
 [ide-purescript]: https://marketplace.visualstudio.com/items?itemName=nwolverson.ide-purescript
+[registry-dev-auth]: https://github.com/purescript/registry-dev/blob/master/SPEC.md#52-authentication

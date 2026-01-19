@@ -111,3 +111,50 @@ Learn by doing and get your hands dirty!
 [f-f]: https://github.com/f-f
 [discord]: https://purescript.org/chat
 [spago-issues]: https://github.com/purescript/spago/issues
+
+## Working with file paths
+
+File paths are very important in Spago. A very big chunk of Spago does is
+shuffling files around and manipulating their paths. Representing them as plain
+strings is not enough.
+
+Spago has three different kinds of paths, represented as distinct types:
+
+- `RootPath` can generally be the root of anything, but in practice it usually
+  points to the root directory of the current workspace. It is constructed in
+  `Main.purs` close to the entry point and is available in all `ReaderT`
+  environments as `rootPath :: RootPath`
+- `LocalPath` is path of a particular file or directory within the workspace. It
+  doesn't have to be literally _within_ the workspace directory - e.g. a custom
+  dependency that lives somewhere on the local file system, - but it's still
+  _relative_ to the workspace. A `LocalPath` is explicitly broken into two
+  parts: a `RootPath` and the "local" part relative to the root. This is useful
+  for printing out workspace-relative paths in user-facing output, while still
+  retaining the full path for actual file operations. A `LocalPath` can be
+  constructed by appending to a `RootPath`. Once so constructed, the `LocalPath`
+  always retains the same root, no matter what subsequent manipulations are done
+  to it. Therefore, if you have a `LocalPath` value, its root is probably
+  pointing to the current workspace directory.
+- `GlobalPath` is for things that are not related to the current workspace.
+  Examples include paths to executables, such as `node` and `purs`, and global
+  directories, such as `registryPath` and `globalCachePath`.
+
+Paths can be appended by using the `</>` operator. It is overloaded for all
+three path types and allows to append string segments to them. When appending to
+a `RootPath`, the result comes out as `LocalPath`. You cannot produce a new
+`RootPath` by appending.
+
+Most code that deals with the workspace operates in `LocalPath` values. Most
+code that deals with external and global things operates in `GlobalPath` values.
+Lower-level primitives, such as in the `Spago.FS` module, are polymorphic and
+can take all three path types as parameters.
+
+For example:
+
+```haskell
+rootPath <- Path.mkRootPath =<< Paths.cwd
+config <- readConfig (rootPath </> "spago.yaml")
+let srcDir = rootPath </> "src"
+compileResult <- callCompiler [ srcDir </> "Main.purs", srcDir </> "Lib.purs" ]
+FS.writeFile (rootPath </> "result.json") (serialize compileResult)
+```

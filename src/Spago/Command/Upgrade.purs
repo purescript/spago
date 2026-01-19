@@ -14,7 +14,9 @@ type UpgradeArgs =
 
 run :: ∀ a. UpgradeArgs -> Spago (FetchEnv a) Unit
 run args = do
-  { workspace } <- ask
+  { workspace, rootPath } <- ask
+  doc <- justOrDieWith workspace.doc Config.configDocMissingErrorMessage
+
   case workspace.workspaceConfig.packageSet of
     Just (Core.SetFromRegistry { registry: currentPackageSet }) -> do
       latestPackageSet <- Registry.findPackageSet args.setVersion
@@ -25,7 +27,7 @@ run args = do
         true -> logSuccess $ "Nothing to upgrade, you already have the " <> whichVersion <> " package set."
         false -> do
           logInfo $ "Upgrading the package set to the " <> whichVersion <> " version: " <> Version.print latestPackageSet
-          Config.setPackageSetVersionInConfig workspace.doc latestPackageSet
+          Config.setPackageSetVersionInConfig rootPath doc latestPackageSet
           logSuccess "Upgrade successful!"
     Just _ -> die "This command is not yet implemented for projects using a custom package set."
     Nothing -> die "This command is not yet implemented for projects using a solver. See https://github.com/purescript/spago/issues/1001"

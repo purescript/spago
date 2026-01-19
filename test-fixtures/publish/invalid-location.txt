@@ -1,0 +1,20 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.
+
+Your package "aaa" is not ready for publishing yet, encountered 1 error:
+
+
+✘ The location specified in the manifest file is not one of the remotes in the git repository.
+Location:
+  - GitHub: purescript/aaa
+Remotes:
+  - origin: git@github.com:purescript/bbb.git

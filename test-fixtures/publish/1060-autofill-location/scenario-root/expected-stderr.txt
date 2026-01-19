@@ -13,6 +13,4 @@ Errors       0     0     0
 Your package "aaa" is not ready for publishing yet, encountered 1 error:
 
 
-✘ The location specified in the manifest file
-({"githubOwner":"purescript","githubRepo":"aaa"})
- is not one of the remotes in the git repository.
+✘ The `publish.location` field of your `spago.yaml` file was empty. Spago filled it in, please commit it and try again.

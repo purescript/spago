@@ -8,8 +8,6 @@ module Spago.Purs.Graph
   , PackageGraph
   , packageGraphCodec
   , getPackageGraph
-  , ModuleGraphWithPackage
-  , ModuleGraphWithPackageNode
   , moduleGraphCodec
   , getModuleGraphWithPackage
   ) where
@@ -31,11 +29,13 @@ import Registry.PackageName as PackageName
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage)
 import Spago.Config as Config
+import Spago.FS as FS
 import Spago.Glob as Glob
 import Spago.Log as Log
-import Spago.Paths as Paths
-import Spago.Purs (ModuleGraph(..), ModuleGraphNode, ModuleName, Purs)
+import Spago.Path as Path
+import Spago.Purs (Purs)
 import Spago.Purs as Purs
+import Spago.Purs.Types (ModuleGraph(..), ModuleGraphNode, ModuleName, ModuleGraphWithPackageNode, ModuleGraphWithPackage)
 import Unsafe.Coerce (unsafeCoerce)
 
 --------------------------------------------------------------------------------
@@ -48,8 +48,8 @@ type PreGraphEnv a =
   | a
   }
 
-runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
-runGraph globs pursArgs = map (lmap toErrorMessage) $ Purs.graph globs pursArgs
+runGraph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PreGraphEnv a) (Either String ModuleGraph)
+runGraph root globs pursArgs = map (lmap toErrorMessage) $ Purs.graph root globs pursArgs
   where
   toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CJ.DecodeError.print
 
@@ -60,13 +60,8 @@ type PackageGraphEnv a =
   { selected :: NonEmptyArray WorkspacePackage
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   | a
-  }
-
-type ModuleGraphWithPackageNode =
-  { path :: String
-  , depends :: Array ModuleName
-  , package :: PackageName
   }
 
 moduleGraphWithPackageNodeCodec :: CJ.Codec ModuleGraphWithPackageNode
@@ -76,14 +71,12 @@ moduleGraphWithPackageNodeCodec = CJ.named "ModuleGraphNode" $ CJ.Record.object
   , package: PackageName.codec
   }
 
-type ModuleGraphWithPackage = Map ModuleName ModuleGraphWithPackageNode
-
 moduleGraphCodec :: CJ.Codec ModuleGraphWithPackage
 moduleGraphCodec = Internal.Codec.strMap "ModuleGraphWithPackage" Right identity moduleGraphWithPackageNodeCodec
 
-getModuleGraphWithPackage :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) ModuleGraphWithPackage
+getModuleGraphWithPackage :: forall a. ModuleGraph -> Spago (PackageGraphEnv a) ModuleGraphWithPackage
 getModuleGraphWithPackage (ModuleGraph graph) = do
-  { selected, dependencies } <- ask
+  { selected, dependencies, rootPath } <- ask
 
   -- First compile the globs for each package, we get out a set of the modules that a package contains
   -- and we can have a map from path to a PackageName
@@ -100,14 +93,30 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
   -- We should memoise them, so that when we get the graph for a monorepo we don't evaluate the globs again.
   -- Each call is a few milliseconds, but there are potentially hundreds of those, and it adds up.
   logDebug "Calling pathToPackage..."
-  pathToPackage :: Map FilePath PackageName <- map (Map.fromFoldable <<< Array.fold)
+  pathToPackage :: Map LocalPath PackageName <- map (Map.fromFoldable <<< Array.fold)
     $ for (Map.toUnfoldable allPackages)
         \(Tuple name package) -> do
           -- Basically partition the modules of the current package by in src and test packages
-          let withTestGlobs = if (Set.member name (Map.keys testPackages)) then OnlyTestGlobs else NoTestGlobs
+          let withTestGlobs = if (Map.member name testPackages) then OnlyTestGlobs else NoTestGlobs
           logDebug $ "Getting globs for package " <> PackageName.print name
-          globMatches :: Array FilePath <- map Array.fold $ traverse compileGlob (Config.sourceGlob withTestGlobs name package)
-          pure $ map (\p -> Tuple p name) globMatches
+
+          -- We have to glob this package's sources relative to its own root,
+          -- not to our workspace root, because the package may be located
+          -- outside of the workspace root - e.g. if it's a local-file-system
+          -- package, - in which case the `gitignoringGlob` function won't match
+          -- any files there. That's just how it works: it walks down the tree
+          -- from the given root.
+          packageRoot <- Path.mkRoot $ Config.getLocalPackageLocation rootPath name package
+          packageExists <- FS.exists packageRoot
+
+          if packageExists then
+            Config.sourceGlob rootPath withTestGlobs name package
+              <#> (_ `Path.relativeTo` packageRoot)
+              # traverse (compileGlob packageRoot)
+              <#> Array.fold
+              <#> map \p -> (p `Path.relativeTo` rootPath) /\ name
+          else
+            pure []
 
   logDebug "Got the pathToPackage map, calling packageGraph"
   let
@@ -116,18 +125,23 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
     addPackageInfo pkgGraph (Tuple moduleName { path, depends }) =
       let
         -- Windows paths will need a conversion to forward slashes to be matched to globs
-        newPath = withForwardSlashes path
+        newPath = withForwardSlashes $ rootPath </> path
         newVal = do
           package <- Map.lookup newPath pathToPackage
-          pure { path: newPath, depends, package }
+          pure { path: Path.localPart newPath, depends, package }
       in
         maybe pkgGraph (\v -> Map.insert moduleName v pkgGraph) newVal
     packageGraph = foldl addPackageInfo Map.empty (Map.toUnfoldable graph :: Array _)
 
   pure packageGraph
 
-compileGlob :: forall a. FilePath -> Spago a (Array FilePath)
-compileGlob sourcePath = liftAff $ Glob.gitignoringGlob Paths.cwd [ withForwardSlashes sourcePath ]
+compileGlob :: ∀ a. RootPath -> LocalPath -> Spago { rootPath :: RootPath | a } (Array LocalPath)
+compileGlob rootPath sourcePath = liftAff $
+  Glob.gitignoringGlob
+    { root: rootPath
+    , includePatterns: [ Path.localPart $ withForwardSlashes sourcePath ]
+    , ignorePatterns: []
+    }
 
 --------------------------------------------------------------------------------
 -- Package graph
@@ -137,7 +151,7 @@ type PackageGraph = Map PackageName { depends :: Set PackageName }
 packageGraphCodec :: CJ.Codec PackageGraph
 packageGraphCodec = Internal.Codec.packageMap (CJ.named "PackageGraphNode" $ CJ.Record.object { depends: CJ.Common.set PackageName.codec })
 
-getPackageGraph :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) PackageGraph
+getPackageGraph :: forall a. ModuleGraph -> Spago (PackageGraphEnv a) PackageGraph
 getPackageGraph graph = do
   moduleGraphWithPackage <- getModuleGraphWithPackage graph
   let
@@ -181,6 +195,7 @@ type ImportsGraphEnv a =
   , workspacePackages :: NonEmptyArray WorkspacePackage
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   | a
   }
 
@@ -231,12 +246,17 @@ checkImports graph = do
         | otherwise = OnlyTestGlobs
 
     -- Compile the globs for the project, we get the set of source files in the project
-    glob :: Set FilePath <- map Set.fromFoldable do
-      map Array.fold $ traverse compileGlob (Config.sourceGlob testGlobOption packageName (WorkspacePackage selected))
+    { rootPath } <- ask
+    projectFiles :: Set String <-
+      Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected)
+        # traverse (compileGlob rootPath)
+        <#> Array.fold
+        <#> map (Path.localPart <<< withForwardSlashes)
+        <#> Set.fromFoldable
 
     let
       -- Filter this improved graph to only have the project modules
-      projectGraph = Map.filterWithKey (\_ { path } -> Set.member path glob) packageGraph
+      projectGraph = packageGraph # Map.filter \{ path } -> Set.member path projectFiles
 
       -- Go through all the modules in the project graph, figure out which packages each module depends on,
       -- accumulate all of that in a single place
@@ -289,10 +309,10 @@ toImportErrors
   -> Array { errorMessage :: Docc, correction :: Docc }
 toImportErrors selected opts { unused, unusedTest, transitive, transitiveTest } = do
   Array.catMaybes
-    [ if opts.reportSrc && (not $ Set.isEmpty unused) then Just $ unusedError false selected unused else Nothing
-    , if opts.reportSrc && (not $ Map.isEmpty transitive) then Just $ transitiveError false selected transitive else Nothing
-    , if opts.reportTest && (not $ Set.isEmpty unusedTest) then Just $ unusedError true selected unusedTest else Nothing
-    , if opts.reportTest && (not $ Map.isEmpty transitiveTest) then Just $ transitiveError true selected transitiveTest else Nothing
+    [ if opts.reportSrc && (not Set.isEmpty unused) then Just $ unusedError false selected unused else Nothing
+    , if opts.reportSrc && (not Map.isEmpty transitive) then Just $ transitiveError false selected transitive else Nothing
+    , if opts.reportTest && (not Set.isEmpty unusedTest) then Just $ unusedError true selected unusedTest else Nothing
+    , if opts.reportTest && (not Map.isEmpty transitiveTest) then Just $ transitiveError true selected transitiveTest else Nothing
     ]
 
 formatImportErrors :: Array { errorMessage :: Docc, correction :: Docc } -> Docc
@@ -320,7 +340,7 @@ unusedError isTest selected unused = do
   { errorMessage: toDoc
       [ toDoc $ (if isTest then "Tests for package '" else "Sources for package '")
           <> PackageName.print selected.package.name
-          <> "' declares unused dependencies - please remove them from the project config:"
+          <> "' declare unused dependencies - please remove them from the project config:"
       , indent $ toDoc $ map (append "- ") unusedPkgs
       ]
   , correction: toDoc

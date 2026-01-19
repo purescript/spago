@@ -31,6 +31,7 @@ module Spago.Core.Config
   , parseBundleType
   , parsePlatform
   , printSpagoRange
+  , publishLocationCodec
   , remotePackageCodec
   , setAddressCodec
   , widestRange
@@ -54,6 +55,8 @@ import Registry.Internal.Codec as Reg.Internal.Codec
 import Registry.Internal.Parsing as Reg.Internal.Parsing
 import Registry.License as License
 import Registry.Location as Location
+import Registry.Owner (Owner)
+import Registry.Owner as Owner
 import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
@@ -97,8 +100,9 @@ type PublishConfig =
   { version :: Version
   , license :: License
   , location :: Maybe Location
-  , include :: Maybe (Array FilePath)
-  , exclude :: Maybe (Array FilePath)
+  , include :: Maybe (Array RawFilePath)
+  , exclude :: Maybe (Array RawFilePath)
+  , owners :: Maybe (Array Owner)
   }
 
 publishConfigCodec :: CJ.Codec PublishConfig
@@ -108,6 +112,7 @@ publishConfigCodec = CJ.named "PublishConfig" $ CJS.objectStrict
   $ CJS.recordPropOptional @"location" publishLocationCodec
   $ CJS.recordPropOptional @"include" (CJ.array CJ.string)
   $ CJS.recordPropOptional @"exclude" (CJ.array CJ.string)
+  $ CJS.recordPropOptional @"owners" (CJ.array Owner.codec)
   $ CJS.record
 
 -- This codec duplicates `Location.codec` from the Registry library, but with
@@ -205,7 +210,7 @@ packageBuildOptionsCodec = CJ.named "PackageBuildOptionsInput" $ CJS.objectStric
 type BundleConfig =
   { minify :: Maybe Boolean
   , module :: Maybe String
-  , outfile :: Maybe FilePath
+  , outfile :: Maybe RawFilePath
   , platform :: Maybe BundlePlatform
   , type :: Maybe BundleType
   , extraArgs :: Maybe (Array String)
@@ -342,7 +347,7 @@ workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJS.objectStrict
   $ CJS.record
 
 type WorkspaceBuildOptionsInput =
-  { output :: Maybe FilePath
+  { output :: Maybe RawFilePath
   , censorLibraryWarnings :: Maybe CensorBuildWarnings
   , statVerbosity :: Maybe StatVerbosity
   }
@@ -435,7 +440,7 @@ statVerbosityCodec = CJ.Sum.enumSum print parse
 data SetAddress
   = SetFromRegistry { registry :: Version }
   | SetFromUrl { url :: String, hash :: Maybe Sha256 }
-  | SetFromPath { path :: FilePath }
+  | SetFromPath { path :: RawFilePath }
 
 derive instance Eq SetAddress
 
@@ -469,7 +474,7 @@ extraPackageCodec = Codec.codec' decode encode
   decode json = map ExtraLocalPackage (Codec.decode localPackageCodec json)
     <|> map ExtraRemotePackage (Codec.decode remotePackageCodec json)
 
-type LocalPackage = { path :: FilePath }
+type LocalPackage = { path :: RawFilePath }
 
 localPackageCodec :: CJ.Codec LocalPackage
 localPackageCodec = CJ.named "LocalPackage" $ CJ.Record.objectStrict { path: CJ.string }
@@ -495,7 +500,7 @@ remotePackageCodec = Codec.codec' decode encode
 type GitPackage =
   { git :: String
   , ref :: String
-  , subdir :: Maybe FilePath
+  , subdir :: Maybe RawFilePath
   , dependencies :: Maybe Dependencies
   }
 

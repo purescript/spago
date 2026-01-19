@@ -21,6 +21,7 @@ import Data.DateTime.Instant (Instant) as Extra
 import Data.Either (Either(..), isLeft, isRight, either, hush) as Extra
 import Data.Filterable (partition, partitionMap) as Extra
 import Data.Foldable (foldMap, for_, foldl, and, or) as Extra
+import Data.FoldableWithIndex (forWithIndex_) as Extra
 import Data.Function (on) as Extra
 import Data.Generic.Rep (class Generic) as Extra
 import Data.Identity (Identity(..)) as Extra
@@ -43,12 +44,12 @@ import Effect.Exception.Unsafe (unsafeThrow) as Extra
 import Effect.Ref (Ref) as Extra
 import Node.Buffer (Buffer) as Extra
 import Node.Encoding (Encoding(..)) as Extra
-import Node.Path (FilePath) as Extra
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.ManifestIndex (ManifestIndex) as Extra
 import Registry.Types (PackageName, Version, Range, Location, License, Manifest(..), Metadata(..), Sha256) as Extra
 import Spago.Json (printJson, parseJson) as Extra
-import Spago.Log (logDebug, logError, logInfo, Docc, logSuccess, logWarn, die, die', justOrDieWith, justOrDieWith', rightOrDie, rightOrDie_, rightOrDieWith, rightOrDieWith', toDoc, indent, indent2, output, LogEnv, LogOptions, OutputFormat(..)) as Extra
+import Spago.Log (logDebug, logError, logInfo, Docc, logSuccess, logWarn, die, die', justOrDieWith, justOrDieWith', rightOrDie, rightOrDie_, rightOrDieWith, toDoc, indent, indent2, output, LogEnv, LogOptions, OutputFormat(..)) as Extra
+import Spago.Path (RawFilePath, GlobalPath, LocalPath, RootPath, class AppendPath, appendPath, (</>)) as Extra
 import Spago.Yaml (YamlDoc, printYaml, parseYaml) as Extra
 
 newtype Spago env a = Spago (ReaderT env Extra.Aff a)

@@ -1,12 +1,5 @@
 module Docs.Search.Engine where
 
-import Docs.Search.ModuleIndex (ModuleIndex, ModuleResult)
-import Docs.Search.PackageIndex (PackageIndex, PackageResult)
-import Docs.Search.Score (Scores)
-import Docs.Search.SearchResult (SearchResult, typeOfResult)
-import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
-import Docs.Search.Types (PackageInfo(..), ModuleName(..), PackageName(..), PackageScore)
-
 import Prelude
 
 import Data.Array as Array
@@ -17,6 +10,13 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Search.Trie (Trie)
 import Data.String.Common (toLower) as String
+import Docs.Search.ModuleIndex (ModuleIndex, ModuleResult)
+import Docs.Search.PackageIndex (PackageIndex, PackageResult)
+import Docs.Search.Score (Scores)
+import Docs.Search.SearchResult (SearchResult, typeOfResult)
+import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
+import Docs.Search.Types (PackageInfo(..), ModuleName(..), PackageScore)
+import Registry.PackageName as PackageName
 
 type Index = Trie Char (List SearchResult)
 
@@ -76,7 +76,7 @@ getResultModuleName (MdlResult r) = r.name
 getResultName :: Result -> String
 getResultName (DeclResult r) = unwrap (unwrap r).name
 getResultName (TypeResult r) = unwrap (unwrap r).name
-getResultName (PackResult r) = unwrap r.name
+getResultName (PackResult r) = PackageName.print r.name
 getResultName (MdlResult r) = unwrap r.name
 
 sortByPopularity :: Array Result -> Array Result
@@ -142,8 +142,8 @@ sortByDistance
 sortByDistance typeQuery =
   Array.sortWith (map (penalty typeQuery) <<< typeOfResult)
 
-packageInfoToString :: PackageName -> PackageInfo -> String
-packageInfoToString _ (Package (PackageName p)) = p
-packageInfoToString _ Builtin = "<builtin>"
-packageInfoToString localPackageName LocalPackage = unwrap localPackageName
-packageInfoToString _ UnknownPackage = "<unknown package>"
+packageInfoToString :: PackageInfo -> String
+packageInfoToString (Package p) = PackageName.print p
+packageInfoToString Builtin = "<builtin>"
+packageInfoToString (LocalPackage p) = PackageName.print p
+packageInfoToString UnknownPackage = "<unknown package>"

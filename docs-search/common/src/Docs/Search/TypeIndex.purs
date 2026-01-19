@@ -1,17 +1,24 @@
 -- | Partial type index, can be loaded on demand in the browser.
-module Docs.Search.TypeIndex where
+module Docs.Search.TypeIndex
+  ( TypeIndex(..)
+  , mkTypeIndex
+  , query
+  ) where
 
 import Prelude
 
+import Codec.JSON.DecodeError as DecodeError
 import Control.Promise (Promise, toAffE)
 import Data.Array as Array
+import Data.Bifunctor (lmap)
 import Data.Codec.JSON as CJ
-import Data.Either (hush)
+import Data.Either (Either(..))
 import Data.Foldable (fold, foldr)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe', isJust)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, over)
+import Data.Set (Set)
 import Docs.Search.Config as Config
 import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocTypes (Type')
@@ -22,15 +29,19 @@ import Docs.Search.TypeQuery (TypeQuery)
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
 import Effect (Effect)
 import Effect.Aff (Aff, try)
+import Effect.Aff as Error
+import Effect.Class.Console as Console
 import JSON (JSON)
 import Language.PureScript.Docs.Types (DocModule(..))
+import Registry.PackageName (PackageName)
+import Spago.Purs.Types as Graph
 
 newtype TypeIndex = TypeIndex (Map String (Maybe (Array SearchResult)))
 
 derive instance newtypeTypeIndex :: Newtype TypeIndex _
 
-mkTypeIndex :: Scores -> Array DocModule -> TypeIndex
-mkTypeIndex scores docsJsons =
+mkTypeIndex :: Graph.ModuleGraphWithPackage -> Set PackageName -> Scores -> Array DocModule -> TypeIndex
+mkTypeIndex moduleGraph workspacePackages scores docsJsons =
   TypeIndex $ map Just $ foldr insert Map.empty docsJsons
   where
   insert :: DocModule -> Map String (Array SearchResult) -> Map String (Array SearchResult)
@@ -43,18 +54,15 @@ mkTypeIndex scores docsJsons =
             Nothing -> identity
       )
       mp
-      (allResults scores docsJson)
+      (allResults moduleGraph workspacePackages scores docsJson)
 
-allResults :: Scores -> DocModule -> Array SearchResult
-allResults scores (DocModule { name, declarations }) =
+allResults :: Graph.ModuleGraphWithPackage -> Set PackageName -> Scores -> DocModule -> Array SearchResult
+allResults moduleGraph workspacePackages scores (DocModule { name, declarations }) =
   declarations >>=
-    ( resultsForDeclaration scores name
+    ( resultsForDeclaration moduleGraph workspacePackages scores name
         >>> map (_.result)
         >>> Array.fromFoldable
     )
-
-resultsWithTypes :: Scores -> DocModule -> Array SearchResult
-resultsWithTypes scores = Array.filter (getType >>> isJust) <<< allResults scores
 
 getType :: SearchResult -> Maybe Type'
 getType (SearchResult { info }) =
@@ -76,15 +84,22 @@ lookup
   -> Aff { index :: TypeIndex, results :: Array SearchResult }
 lookup key index@(TypeIndex map) =
   case Map.lookup key map of
-    Just results -> pure { index, results: fold results }
+    Just results ->
+      pure { index, results: fold results }
     Nothing -> do
-      eiJson <- try (toAffE (lookup_ key $ Config.mkShapeScriptPath key))
-      pure $ fromMaybe'
-        (\_ -> { index: insert key Nothing index, results: [] })
-        do
-          json <- hush eiJson
-          results <- hush (CJ.decode (CJ.array SearchResult.searchResultCodec) json)
+      eitherJson <- try $ toAffE $ lookup_ key (Config.mkShapeScriptPath key)
+
+      let
+        eitherResults = do
+          json <- eitherJson # lmap Error.message
+          CJ.decode (CJ.array SearchResult.searchResultCodec) json # lmap DecodeError.print
+
+      case eitherResults of
+        Right results ->
           pure { index: insert key (Just results) index, results }
+        Left err -> do
+          Console.error $ "Error reading type index: " <> err
+          pure { index: insert key Nothing index, results: [] }
 
   where
   insert
@@ -98,9 +113,8 @@ query
   :: TypeIndex
   -> TypeQuery
   -> Aff { index :: TypeIndex, results :: Array SearchResult }
-query typeIndex typeQuery = do
-  res <- lookup (stringifyShape $ shapeOfTypeQuery typeQuery) typeIndex
-  pure $ res { results = res.results }
+query typeIndex typeQuery =
+  lookup (stringifyShape $ shapeOfTypeQuery typeQuery) typeIndex
 
 foreign import lookup_
   :: String

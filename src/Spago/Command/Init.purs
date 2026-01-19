@@ -16,16 +16,17 @@ import Spago.Prelude
 
 import Data.Map as Map
 import Data.String as String
-import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Log as Log
-import Spago.Paths as Paths
+import Spago.Path as Path
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
+
+type InitEnv a = RegistryEnv (rootPath :: RootPath | a)
 
 data InitMode
   = InitWorkspace { packageName :: Maybe String }
@@ -40,7 +41,7 @@ type InitOptions =
 
 -- TODO run git init? Is that desirable?
 
-run :: ∀ a. InitOptions -> Spago (RegistryEnv a) Config
+run :: ∀ a. InitOptions -> Spago (InitEnv a) Config
 run opts = do
   -- Use the specified version of the package set (if specified).
   -- Otherwise, get the latest version of the package set for the given compiler
@@ -57,9 +58,9 @@ run opts = do
   let
     mainModuleName = "Main"
     testModuleName = "Test.Main"
-    srcDir = Path.concat [ projectDir, "src" ]
-    testDir = Path.concat [ projectDir, "test" ]
-    configPath = Path.concat [ projectDir, "spago.yaml" ]
+    srcDir = projectDir </> "src"
+    testDir = projectDir </> "test"
+    configPath = projectDir </> "spago.yaml"
     config = defaultConfig { name: packageName, withWorkspace, testModuleName }
 
   -- Write config
@@ -71,16 +72,16 @@ run opts = do
   -- Because you might want to just init a project with your own source files,
   -- or just migrate a psc-package project
   whenDirNotExists srcDir do
-    copyIfNotExists (Path.concat [ srcDir, mainModuleName <> ".purs" ]) (srcMainTemplate mainModuleName)
+    copyIfNotExists (srcDir </> (mainModuleName <> ".purs")) (srcMainTemplate mainModuleName)
 
   whenDirNotExists testDir $ do
-    FS.mkdirp (Path.concat [ testDir, "Test" ])
-    copyIfNotExists (Path.concat [ testDir, "Test", "Main.purs" ]) (testMainTemplate testModuleName)
+    FS.mkdirp (testDir </> "Test")
+    copyIfNotExists (testDir </> "Test" </> "Main.purs") (testMainTemplate testModuleName)
 
   case opts.mode of
     InitWorkspace _ -> do
-      copyIfNotExists ".gitignore" gitignoreTemplate
-      copyIfNotExists pursReplFile.name pursReplFile.content
+      copyIfNotExists (projectDir </> ".gitignore") gitignoreTemplate
+      copyIfNotExists (projectDir </> pursReplFile.name) pursReplFile.content
     InitSubpackage _ ->
       pure unit
 
@@ -102,14 +103,15 @@ run opts = do
       true -> logInfo $ foundExistingFile dest
       false -> FS.writeTextFile dest srcTemplate
 
-  getPackageName :: Spago (RegistryEnv a) PackageName
+  getPackageName :: Spago (InitEnv a) PackageName
   getPackageName = do
+    { rootPath } <- ask
     let
       candidateName = case opts.mode of
-        InitWorkspace { packageName: Nothing } -> String.take 150 $ Path.basename Paths.cwd
+        InitWorkspace { packageName: Nothing } -> String.take 150 $ Path.basename rootPath
         InitWorkspace { packageName: Just n } -> n
         InitSubpackage { packageName: n } -> n
-    logDebug [ show Paths.cwd, show candidateName ]
+    logDebug [ Path.quote rootPath, "\"" <> candidateName <> "\"" ]
     pname <- case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
       Left err -> die
         [ toDoc "Could not figure out a name for the new package. Error:"
@@ -120,7 +122,7 @@ run opts = do
     logDebug [ "Got packageName and setVersion:", PackageName.print pname, unsafeStringify opts.setVersion ]
     pure pname
 
-  getWithWorkspace :: Version -> Spago (RegistryEnv a) (Maybe { setVersion :: Maybe Version })
+  getWithWorkspace :: Version -> Spago (InitEnv a) (Maybe { setVersion :: Maybe Version })
   getWithWorkspace setVersion = case opts.mode of
     InitWorkspace _ ->
       pure $ Just
@@ -133,12 +135,13 @@ run opts = do
         logWarn "The --package-set and --use-solver flags are ignored when initializing a subpackage"
       pure Nothing
 
-  getProjectDir :: PackageName -> Spago (RegistryEnv a) FilePath
+  getProjectDir :: PackageName -> Spago (InitEnv a) LocalPath
   getProjectDir packageName = case opts.mode of
     InitWorkspace _ ->
-      pure "."
+      ask <#> _.rootPath <#> (_ </> "")
     InitSubpackage _ -> do
-      let dirPath = PackageName.print packageName
+      { rootPath } <- ask
+      let dirPath = rootPath </> PackageName.print packageName
       unlessM (FS.exists dirPath) $ FS.mkdirp dirPath
       pure dirPath
 
@@ -288,11 +291,11 @@ pursReplFile = { name: ".purs-repl", content: "import Prelude\n" }
 
 -- ERROR TEXTS -----------------------------------------------------------------
 
-foundExistingProject :: FilePath -> String
-foundExistingProject path = "Found a \"" <> path <> "\" file, skipping copy."
+foundExistingProject :: LocalPath -> String
+foundExistingProject path = "Found a " <> Path.quote path <> " file, skipping copy."
 
-foundExistingDirectory :: FilePath -> String
-foundExistingDirectory dir = "Found existing directory \"" <> dir <> "\", skipping copy of sample sources"
+foundExistingDirectory :: LocalPath -> String
+foundExistingDirectory dir = "Found existing directory " <> Path.quote dir <> ", skipping copy of sample sources"
 
-foundExistingFile :: FilePath -> String
-foundExistingFile file = "Found existing file \"" <> file <> "\", not overwriting it"
+foundExistingFile :: LocalPath -> String
+foundExistingFile file = "Found existing file " <> Path.quote file <> ", not overwriting it"

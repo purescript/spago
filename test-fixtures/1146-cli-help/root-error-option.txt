@@ -8,21 +8,23 @@ Available options:
   -v,--version             Show the current version
 
 Available commands:
-  init                     Initialise a new project
-  fetch                    Downloads all of the project's dependencies
-  install                  Compile the project's dependencies
-  uninstall                Remove dependencies from a package
+  auth                     Authenticate as the owner of a package, to allow
+                           transfer and unpublish operations
   build                    Compile the project
-  run                      Run the project
-  test                     Test the project
   bundle                   Bundle the project in a single file
+  docs                     Generate docs for the project and its dependencies
+  fetch                    Downloads all of the project's dependencies
+  graph                    Generate a graph of modules or dependencies
+  init                     Initialise a new project
+  install                  Compile the project's dependencies
+  ls                       List packages or dependencies
+  publish                  Publish a package
+  registry                 Commands to interact with the Registry
+  repl                     Start a REPL
+  run                      Run the project
   sources                  List all the source paths (globs) for the
                            dependencies of the project
-  repl                     Start a REPL
-  publish                  Publish a package
+  test                     Test the project
+  uninstall                Remove dependencies from a package
   upgrade                  Upgrade to the latest package set, or to the latest
                            versions of Registry packages
-  docs                     Generate docs for the project and its dependencies
-  registry                 Commands to interact with the Registry
-  ls                       List packages or dependencies
-  graph                    Generate a graph of modules or dependencies

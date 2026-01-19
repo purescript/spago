@@ -1,0 +1,3 @@
+package:
+  title: b # `title` is not a valid field, this config will error out on parsing.
+  dependencies: []

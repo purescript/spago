@@ -8,8 +8,11 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Codec.JSON as CJ
 import Data.Either (Either)
+import Foreign (Foreign)
+import JSON (JSON)
 import JSON as JSON
 import JSON.Path as JSON.Path
+import Unsafe.Coerce (unsafeCoerce)
 
 -- | Print a type as a formatted JSON string
 printJson :: forall a. CJ.Codec a -> a -> String
@@ -31,3 +34,7 @@ printConfigError (DecodeError { path, message, causes }) =
     false -> Array.foldMap printConfigError causes
     -- If there are none, then we have reached a leaf, and can print the actual error
     true -> [ JSON.Path.print path <> ": " <> message ]
+
+-- | Decode a Foreign into JSON
+unsafeFromForeign :: Foreign -> JSON
+unsafeFromForeign = unsafeCoerce

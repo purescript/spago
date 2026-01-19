@@ -1,7 +1,7 @@
 package:
   name: spago
   publish:
-    version: 0.93.39
+    version: 0.93.45
     license: BSD-3-Clause
     location:
       githubOwner: purescript
@@ -17,7 +17,6 @@ package:
     - affjax
     - affjax-node
     - ansi
-    - argonaut-core
     - arrays
     - avar
     - codec
@@ -31,6 +30,8 @@ package:
     - effect
     - either
     - enums
+    - exceptions
+    - fetch
     - filterable
     - foldable-traversable
     - foreign-object
@@ -64,6 +65,7 @@ package:
     - spago-core
     - strings
     - strings-extra
+    - stringutils
     - transformers
     - tuples
     - unfoldable
@@ -76,7 +78,6 @@ package:
       - ImplicitQualifiedImport
     dependencies:
       - exceptions
-      - identity
       - quickcheck
       - spec
       - spec-node

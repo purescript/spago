@@ -2,29 +2,16 @@ module Spago.Command.Publish (publish, PublishEnv) where
 
 import Spago.Prelude
 
-import Affjax.Node as Http
-import Affjax.RequestBody as RequestBody
-import Affjax.ResponseFormat as ResponseFormat
-import Affjax.StatusCode (StatusCode(..))
-import Data.Argonaut.Core (Json)
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
-import Data.Codec.JSON as CJ
-import Data.DateTime (DateTime)
-import Data.Formatter.DateTime as DateTime
 import Data.List as List
 import Data.Map as Map
 import Data.String as String
 import Dodo (break, lines)
-import Effect.Aff (Milliseconds(..))
-import Effect.Aff as Aff
 import Effect.Ref as Ref
-import JSON (JSON)
-import Node.Path as Path
+import Node.Path as Node.Path
 import Node.Process as Process
 import Record as Record
-import Registry.API.V1 as V1
-import Registry.Internal.Format as Internal.Format
 import Registry.Internal.Path as Internal.Path
 import Registry.Location as Location
 import Registry.Metadata as Metadata
@@ -32,7 +19,6 @@ import Registry.Operation as Operation
 import Registry.Operation.Validation as Operation.Validation
 import Registry.PackageName as PackageName
 import Registry.Version as Version
-import Routing.Duplex as Duplex
 import Spago.Command.Build (BuildEnv)
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
@@ -43,14 +29,13 @@ import Spago.FS as FS
 import Spago.Git (Git)
 import Spago.Git as Git
 import Spago.Json as Json
-import Spago.Log (LogVerbosity(..))
 import Spago.Log as Log
+import Spago.Path as Path
 import Spago.Prelude as Effect
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
 import Spago.Registry (PreRegistryEnv)
 import Spago.Registry as Registry
-import Unsafe.Coerce (unsafeCoerce)
 
 type PublishData =
   { name :: PackageName
@@ -64,6 +49,7 @@ type PublishEnv a =
   { getRegistry :: Spago (PreRegistryEnv ()) Registry.RegistryFunctions
   , workspace :: Workspace
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   , offline :: OnlineStatus
   , git :: Git
   , db :: Db
@@ -97,7 +83,7 @@ publish _args = do
         )
         resultRef
 
-  env@{ selected: selected', purs, dependencies } <- ask
+  env@{ selected: selected', purs, dependencies, rootPath } <- ask
   let (selected :: WorkspacePackage) = selected' { hasTests = false }
   let name = selected.package.name
   let strName = PackageName.print name
@@ -105,7 +91,7 @@ publish _args = do
   logDebug $ "Publishing package " <> strName
 
   -- As first thing we run a build to make sure the package compiles at all
-  built <- runBuild { selected, dependencies: env.dependencies }
+  built <- runBuild { selected, dependencies }
     ( Build.run
         { depsOnly: false
         , pursArgs: []
@@ -117,9 +103,9 @@ publish _args = do
     Effect.liftEffect Process.exit
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let allCoreDependencies = Fetch.toAllDependencies $ dependencies <#> _ { test = Map.empty }
-  let globs = Build.getBuildGlobs { selected: NEA.singleton selected, withTests: false, dependencies: allCoreDependencies, depsOnly: false }
-  eitherGraph <- Graph.runGraph globs []
+  let coreDependencies = dependencies # Map.lookup name <#> _.core # fromMaybe Map.empty
+  let globs = Build.getBuildGlobs { rootPath, selected: NEA.singleton selected, withTests: false, dependencies: coreDependencies, depsOnly: false }
+  eitherGraph <- Graph.runGraph rootPath globs []
   case eitherGraph of
     Right graph -> do
       graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false }
@@ -155,7 +141,17 @@ publish _args = do
       , "See the configuration file's documentation: https://github.com/purescript/spago#the-configuration-file"
       ]
     Just publishConfig -> case publishConfig.location of
-      Nothing -> addError $ toDoc "Need to specify a publish.location field."
+      Nothing -> do
+        addedToConfig <- inferLocationAndWriteToConfig selected
+        if addedToConfig then
+          addError $ toDoc $
+            "The `publish.location` field of your `spago.yaml` file was empty. Spago filled it in, please commit it and try again."
+        else
+          addError $ toDoc
+            [ "The `publish.location` field is not present in the `spago.yaml` file."
+            , "Spago is unable to infer it from Git remotes, so please populate it manually."
+            , "See the docs for more info: https://github.com/purescript/spago#the-configuration-file"
+            ]
       Just location -> do
         -- Get the metadata file for this package.
         -- It will exist if the package has been published at some point, it will not if the package is new.
@@ -166,7 +162,7 @@ publish _args = do
             logDebug $ "Got error while reading metadata file: " <> err
             pure
               { location
-              , owners: Nothing -- TODO: get that from the config file
+              , owners: NEA.fromArray =<< publishConfig.owners
               , published: Map.empty
               , unpublished: Map.empty
               }
@@ -178,7 +174,7 @@ publish _args = do
             , dependencies: depsRanges
             , version: publishConfig.version
             , license: publishConfig.license
-            , owners: Nothing -- TODO specify owners in spago config
+            , owners: NEA.fromArray =<< publishConfig.owners
             , excludeFiles: Nothing -- TODO specify files in spago config
             , includeFiles: Nothing -- TODO specify files in spago config
             }
@@ -192,10 +188,13 @@ publish _args = do
           , "submit a transfer operation."
           ]
 
-        unlessM (locationIsInGitRemotes location) $ addError $ toDoc
-          [ "The location specified in the manifest file"
-          , "(" <> Json.stringifyJson Location.codec location <> ")"
-          , " is not one of the remotes in the git repository."
+        locationResult <- locationIsInGitRemotes rootPath location
+        unless locationResult.result $ addError $ toDoc
+          [ toDoc "The location specified in the manifest file is not one of the remotes in the git repository."
+          , toDoc "Location:"
+          , indent (toDoc $ "- " <> prettyPrintLocation location)
+          , toDoc "Remotes:"
+          , lines $ locationResult.remotes <#> \r -> indent $ toDoc $ "- " <> r.name <> ": " <> r.url
           ]
 
         -- Check that all the dependencies come from the registry
@@ -207,7 +206,7 @@ publish _args = do
                       RegistryVersion v -> Right (Tuple pkgName v)
                       _ -> Left pkgName
                   )
-              $ (Map.toUnfoldable allCoreDependencies :: Array _)
+              $ (Map.toUnfoldable coreDependencies :: Array _)
         if Array.length fail > 0 then
           addError
             $ toDoc
@@ -221,19 +220,30 @@ publish _args = do
           -- All dependencies come from the registry so we can trust the build plan.
           -- We can then try to build with the dependencies from there.
 
-          Internal.Path.readPursFiles (Path.concat [ selected.path, "src" ]) >>= case _ of
+          Internal.Path.readPursFiles (Path.toRaw $ selected.path </> "src") >>= case _ of
             Nothing -> addError $ toDoc
               [ "This package has no PureScript files in its `src` directory. "
               , "All package sources must be in the `src` directory, with any additional "
               , "sources indicated by the `files` key in your manifest."
               ]
             Just files -> do
+              let
+                -- `validatePursModules` returns full paths in its response, so
+                -- we need to strip the workspace root path to print it out in
+                -- user-friendly way, but we can't use the machinery from
+                -- `Spago.Paths`, because the paths are embedded in other text,
+                -- so we have to resort to substring matching.
+                rootPathPrefix =
+                  Path.toRaw rootPath
+                    # String.stripSuffix (String.Pattern "/")
+                    # fromMaybe (Path.toRaw rootPath)
+                    # (_ <> Node.Path.sep)
               Operation.Validation.validatePursModules files >>= case _ of
                 Left formattedError -> addError $ toDoc
                   [ "This package has either malformed or disallowed PureScript module names"
                   , "in its `src` directory. All package sources must be in the `src` directory,"
                   , "with any additional sources indicated by the `files` key in your manifest."
-                  , formattedError
+                  , formattedError # String.replaceAll (String.Pattern rootPathPrefix) (String.Replacement "")
                   ]
                 Right _ -> pure unit
 
@@ -265,10 +275,10 @@ publish _args = do
           -- 2) input any login credentials as there are other errors to fix
           --    before doing that.
           -- The "hard" git tag checks will occur only if these succeed.
-          Git.getStatus Nothing >>= case _ of
+          Git.getStatus rootPath >>= case _ of
             Left _err -> do
               die $ toDoc
-                [ toDoc "Could not verify whether the git tree is clean due to the below error:"
+                [ toDoc "Could not verify whether the git tree is clean. Error was:"
                 , indent _err
                 ]
             Right statusResult
@@ -280,7 +290,7 @@ publish _args = do
               | otherwise -> do
                   -- TODO: once we ditch `purs publish`, we don't have a requirement for a tag anymore,
                   -- but we can use any ref. We can then use `getRef` here instead of `tagCheckedOut`
-                  maybeCurrentTag <- hush <$> Git.tagCheckedOut Nothing
+                  maybeCurrentTag <- hush <$> Git.tagCheckedOut rootPath
                   case maybeCurrentTag of
                     Just currentTag ->
                       when (currentTag /= expectedTag) $ addError $ toDoc
@@ -294,7 +304,7 @@ publish _args = do
                     Nothing ->
                       -- Current commit does not refer to a git tag.
                       -- We should see whether the expected tag was already defined
-                      Git.listTags Nothing >>= case _ of
+                      Git.listTags rootPath >>= case _ of
                         Left err ->
                           die $ toDoc
                             [ toDoc "Cannot check whether publish config's `version` matches any existing git tags due to the below error:"
@@ -341,7 +351,7 @@ publish _args = do
     Right { expectedVersion, publishingData: publishingData@{ resolutions } } -> do
       logInfo "Passed preliminary checks."
       -- This requires login credentials.
-      Git.pushTag Nothing expectedVersion >>= case _ of
+      Git.pushTag rootPath expectedVersion >>= case _ of
         Left err -> die $ toDoc
           [ err
           , toDoc "You can try to push the tag manually by running:"
@@ -371,13 +381,7 @@ publish _args = do
       logSuccess "Ready for publishing. Calling the registry.."
 
       let newPublishingData = publishingData { resolutions = Just publishingData.resolutions } :: Operation.PublishData
-
-      { jobId } <- callRegistry (baseApi <> Duplex.print V1.routes V1.Publish) V1.jobCreatedResponseCodec (Just { codec: Operation.publishCodec, data: newPublishingData })
-      logSuccess $ "Registry accepted the Publish request and is processing..."
-      logDebug $ "Job ID: " <> unwrap jobId
-      logInfo "Logs from the Registry pipeline:"
-      waitForJobFinish jobId
-
+      Registry.submitRegistryOperation (Operation.Publish newPublishingData)
       pure newPublishingData
   where
   -- If you are reading this and think that you can make it look nicer with
@@ -390,91 +394,68 @@ publish _args = do
       , git: env.git
       , dependencies
       , logOptions: env.logOptions
+      , rootPath: env.rootPath
       , workspace: env.workspace { selected = Just selected }
       , strictWarnings: Nothing
       , pedanticPackages: false
       }
       action
 
-callRegistry :: forall env a b. String -> CJ.Codec b -> Maybe { codec :: CJ.Codec a, data :: a } -> Spago (PublishEnv env) b
-callRegistry url outputCodec maybeInput = handleError do
-  logDebug $ "Calling registry at " <> url
-  response <- liftAff $ withBackoff' $ case maybeInput of
-    Just { codec: inputCodec, data: input } -> Http.post ResponseFormat.string url (Just $ RequestBody.json $ (unsafeCoerce :: JSON -> Json) $ CJ.encode inputCodec input)
-    Nothing -> Http.get ResponseFormat.string url
-  case response of
-    Nothing -> pure $ Left $ "Could not reach the registry at " <> url
-    Just (Left err) -> pure $ Left $ "Error while calling the registry:\n  " <> Http.printError err
-    Just (Right { status, body }) | status /= StatusCode 200 -> do
-      pure $ Left $ "Registry did not like this and answered with status " <> show status <> ", got answer:\n  " <> body
-    Just (Right { body }) -> do
-      pure $ case parseJson outputCodec body of
-        Right output -> Right output
-        Left err -> Left $ "Could not parse response from the registry, error: " <> show err
-  where
-  -- TODO: see if we want to just kill the process generically here, or give out customized errors
-  handleError a = do
-    { offline } <- ask
-    case offline of
-      Offline -> die "Spago is offline - not able to call the Registry."
-      Online ->
-        a >>= case _ of
-          Left err -> die err
-          Right res -> pure res
-
-waitForJobFinish :: forall env. V1.JobId -> Spago (PublishEnv env) Unit
-waitForJobFinish jobId = go Nothing
-  where
-  go :: Maybe DateTime -> Spago (PublishEnv env) Unit
-  go lastTimestamp = do
-    { logOptions } <- ask
-    let
-      url = baseApi <> Duplex.print V1.routes
-        ( V1.Job jobId
-            { since: lastTimestamp
-            , level: case logOptions.verbosity of
-                LogVerbose -> Just V1.Debug
-                _ -> Just V1.Info
-            }
-        )
-    jobInfo :: V1.Job <- callRegistry url V1.jobCodec Nothing
-    -- first of all, print all the logs we get
-    for_ jobInfo.logs \log -> do
-      let line = Log.indent $ toDoc $ DateTime.format Internal.Format.iso8601DateTime log.timestamp <> " " <> log.message
-      case log.level of
-        V1.Debug -> logDebug line
-        V1.Info -> logInfo line
-        V1.Warn -> logWarn line
-        V1.Error -> logError line
-    case jobInfo.finishedAt of
-      Nothing -> do
-        -- If the job is not finished, we grab the timestamp of the last log line, wait a bit and retry
-        let
-          latestTimestamp = jobInfo.logs # Array.last # case _ of
-            Just log -> Just log.timestamp
-            Nothing -> lastTimestamp
-        liftAff $ Aff.delay $ Milliseconds 500.0
-        go latestTimestamp
-      Just _finishedAt -> do
-        -- if it's done we report the failure.
-        logDebug $ "Job: " <> printJson V1.jobCodec jobInfo
-        case jobInfo.success of
-          true -> logSuccess $ "Registry finished processing the package. Your package was published successfully!"
-          false -> die $ "Registry finished processing the package, but it failed. Please fix it and try again."
-
-locationIsInGitRemotes :: ∀ a. Location -> Spago (PublishEnv a) Boolean
-locationIsInGitRemotes location = do
-  isGitRepo <- FS.exists ".git"
+locationIsInGitRemotes :: ∀ a. RootPath -> Location -> Spago (PublishEnv a) { result :: Boolean, remotes :: Array Git.Remote }
+locationIsInGitRemotes root location = do
+  isGitRepo <- FS.exists $ root </> ".git"
   if not isGitRepo then
-    pure false
+    pure { result: false, remotes: [] }
   else
-    Git.getRemotes Nothing >>= case _ of
+    Git.getRemotes root >>= case _ of
       Left err ->
-        die $ toDoc err
-      Right remotes ->
-        pure $ remotes # Array.any \r -> case location of
-          Location.Git { url } -> r.url == url
-          Location.GitHub { owner, repo } -> r.owner == owner && r.repo == repo
+        die [ toDoc "Couldn't parse Git remotes: ", err ]
+      Right remotes -> do
+        let
+          result = remotes # Array.any \r -> case location of
+            Location.Git { url } -> r.url == url
+            Location.GitHub { owner, repo } -> r.owner == owner && r.repo == repo
+        pure { result, remotes }
 
-baseApi :: String
-baseApi = "https://registry.purescript.org"
+inferLocationAndWriteToConfig :: ∀ a. WorkspacePackage -> Spago (PublishEnv a) Boolean
+inferLocationAndWriteToConfig selectedPackage = do
+  { rootPath } <- ask
+  Git.getRemotes rootPath >>= case _ of
+    Left err ->
+      die [ toDoc "Couldn't parse Git remotes: ", err ]
+    Right remotes ->
+      case Array.find (_.name >>> eq "origin") remotes of
+        Nothing ->
+          pure false
+        Just origin -> do
+          -- TODO: at the moment the registry supports only `subdir:
+          -- Nothing` cases, so we error out when the package is nested.
+          -- Once the registry supports subdirs, the `else` branch should
+          -- return `selectedPackage.path`
+          subdir <-
+            if Config.isRootPackage selectedPackage then
+              pure Nothing
+            else
+              die "The registry does not support nested packages yet. Only the root package can be published."
+
+          -- TODO: similarly, the registry only supports `GitHub` packages, so
+          -- we error out in other cases. Once the registry supports non-GitHub
+          -- packages, the `else` branch should return `Git { url: origin.url, subdir }`
+          location <-
+            if String.contains (String.Pattern "github.com") origin.url then
+              pure $ Location.GitHub { owner: origin.owner, repo: origin.repo, subdir }
+            else
+              die
+                [ "The registry only supports packages hosted on GitHub at the moment."
+                , "Cannot publish this package because it is hosted at " <> origin.url
+                ]
+
+          doc <- justOrDieWith selectedPackage.doc Config.configDocMissingErrorMessage
+          liftEffect $ Config.addPublishLocationToConfig doc location
+          liftAff $ FS.writeYamlDocFile (selectedPackage.path </> "spago.yaml") doc
+          pure true
+
+prettyPrintLocation :: Location -> String
+prettyPrintLocation = case _ of
+  Location.Git { url } -> url
+  Location.GitHub { owner, repo } -> "GitHub: " <> owner <> "/" <> repo

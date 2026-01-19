@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.39",
+  "version": "0.93.45",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -34,24 +34,25 @@
     "halogen:dev": "./bin/index.dev.js bundle -p docs-search-client-halogen --outfile=./generated-docs/html/docs-search-app.js --bundler-args '--watch=forever' --bundler-args '--servedir=./generated-docs/html'"
   },
   "dependencies": {
-    "@nodelib/fs.walk": "^2.0.0",
-    "better-sqlite3": "^11.0.0",
+    "@nodelib/fs.walk": "^3.0.1",
+    "better-sqlite3": "^12.5.0",
     "env-paths": "^3.0.0",
-    "fs-extra": "^11.2.0",
-    "fuse.js": "^7.0.0",
-    "glob": "^10.4.1",
+    "fs-extra": "^11.3.0",
+    "fuse.js": "^7.1.0",
+    "glob": "^11.0.1",
     "markdown-it": "^14.1.0",
-    "micromatch": "^4.0.7",
+    "micromatch": "^4.0.8",
     "open": "^10.1.0",
     "picomatch": "^4.0.2",
     "punycode": "^2.3.1",
-    "semver": "^7.6.2",
+    "readline-sync": "^1.4.10",
+    "semver": "^7.7.1",
     "spdx-expression-parse": "^4.0.0",
-    "ssh2": "^1.15.0",
-    "supports-color": "^9.4.0",
-    "tar": "^7.2.0",
+    "ssh2": "^1.16.0",
+    "supports-color": "^10.0.0",
+    "tar": "^7.4.3",
     "tmp": "^0.2.3",
     "xhr2": "^0.2.1",
-    "yaml": "^2.4.5"
+    "yaml": "^2.7.0"
   }
 }

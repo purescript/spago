@@ -12,33 +12,49 @@ module Spago.Registry
   , listMetadataFiles
   , listPackageSets
   , readPackageSet
+  , submitRegistryOperation
   ) where
 
 import Spago.Prelude
 
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.DateTime as DateTime
+import Data.Codec.JSON as CJ
+import Data.DateTime (DateTime)
+import Data.DateTime (diff) as DateTime
+import Data.Formatter.DateTime (format) as DateTime
 import Data.Map as Map
 import Data.Set as Set
 import Data.String (Pattern(..))
 import Data.String as String
-import Data.Time.Duration (Minutes(..))
+import Data.Time.Duration (Milliseconds(..), Minutes(..))
+import Data.Traversable (sequence)
 import Effect.AVar (AVar)
+import Effect.Aff as Aff
 import Effect.Aff.AVar as AVar
+import Effect.Exception as Exception
 import Effect.Now as Now
-import Node.Path as Path
+import Fetch as Http
+import Node.Process as Process
+import Registry.API.V1 as V1
 import Registry.Constants as Registry.Constants
+import Registry.Internal.Format as Internal.Format
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
+import Registry.Operation as Operation
 import Registry.PackageName as PackageName
 import Registry.PackageSet (PackageSet(..))
 import Registry.PackageSet as PackageSet
 import Registry.Version as Version
+import Routing.Duplex as Duplex
 import Spago.Db (Db)
 import Spago.Db as Db
 import Spago.FS as FS
+import Spago.Git (GitEnv)
 import Spago.Git as Git
+import Spago.Json as Json
+import Spago.Log (LogVerbosity(..))
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 
@@ -112,43 +128,53 @@ readPackageSet version = do
   { readPackageSet: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
   runSpago { logOptions } (fn version)
 
-getRegistryFns :: AVar RegistryFunctions -> AVar Unit -> Spago (PreRegistryEnv _) RegistryFunctions
+getRegistryFns :: AVar RegistryFunctions -> AVar Unit -> Spago (PreRegistryEnv ()) RegistryFunctions
 getRegistryFns registryBox registryLock = do
   -- The Box AVar will be empty until the first time we fetch the Registry, then
   -- we can just use the value that is cached.
   -- The Lock AVar is used to make sure
   -- that only one fiber is fetching the Registry at a time, and that all the other
   -- fibers will wait for it to finish and then use the cached value.
-  { db } <- ask
+  { offline } <- ask
   liftAff $ AVar.take registryLock
-  liftAff (AVar.tryRead registryBox) >>= case _ of
-    Just registry -> do
-      liftAff $ AVar.put unit registryLock
-      pure registry
-    Nothing -> do
-      _fetchingFreshRegistry <- fetchRegistry
-      let
-        registryFns =
-          { getManifestFromIndex: getManifestFromIndexImpl db
-          , getMetadata: getMetadataImpl db
-          , getMetadataForPackages: getMetadataForPackagesImpl db
-          , listMetadataFiles: FS.ls (Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory ])
-          , listPackageSets: listPackageSetsImpl
-          , findPackageSet: findPackageSetImpl
-          , readPackageSet: readPackageSetImpl
-          }
-      liftAff $ AVar.put registryFns registryBox
-      liftAff $ AVar.put unit registryLock
-      pure registryFns
-
+  fns <- liftAff (AVar.tryRead registryBox) >>= case _ of
+    -- If we are asked to bypass the cache then we need to rebuild again
+    Just _registry | offline == OnlineBypassCache -> do
+      -- We know the box is full so first thing we do is to empty it
+      void $ liftAff $ AVar.take registryBox
+      buildRegistryFns
+    -- If we are in other states we can just return the cached value
+    Just registry -> pure registry
+    -- No cached value, so build it
+    Nothing -> buildRegistryFns
+  liftAff $ AVar.put unit registryLock
+  pure fns
   where
+  buildRegistryFns :: Spago (PreRegistryEnv _) RegistryFunctions
+  buildRegistryFns = do
+    { db, offline } <- ask
+    _fetchingFreshRegistry <- fetchRegistry
+    let
+      registryFns =
+        { getManifestFromIndex: getManifestFromIndexImpl db
+        , getMetadata: getMetadataImpl db offline
+        , getMetadataForPackages: getMetadataForPackagesImpl db offline
+        , listMetadataFiles: FS.ls $ Paths.registryPath </> Registry.Constants.metadataDirectory
+        , listPackageSets: listPackageSetsImpl
+        , findPackageSet: findPackageSetImpl
+        , readPackageSet: readPackageSetImpl
+        }
+    liftAff $ AVar.put registryFns registryBox
+    pure registryFns
+
   fetchRegistry :: Spago (PreRegistryEnv _) Boolean
   fetchRegistry = do
     -- we keep track of how old the latest pull was - if the last pull was recent enough
     -- we just move on, otherwise run the fibers
-    { db } <- ask
+    { db, offline } <- ask
     fetchingFreshRegistry <- shouldFetchRegistryRepos db
-    when fetchingFreshRegistry do
+    -- we also check if we need to bypass this cache (for when we need the freshest data)
+    when (fetchingFreshRegistry || offline == OnlineBypassCache) do
       -- clone the registry and index repo, or update them
       logInfo "Refreshing the Registry Index..."
       parallelise
@@ -165,7 +191,7 @@ getRegistryFns registryBox registryLock = do
     pure fetchingFreshRegistry
 
   -- | Update the database with the latest package sets
-  updatePackageSetsDb :: Db -> Spago (LogEnv _) Unit
+  updatePackageSetsDb :: ∀ a. Db -> Spago (LogEnv a) Unit
   updatePackageSetsDb db = do
     { logOptions } <- ask
     setsAvailable <- map Set.fromFoldable getAvailablePackageSets
@@ -183,7 +209,7 @@ getRegistryFns registryBox registryLock = do
           liftEffect $ Db.insertPackageSetEntry db { packageName: name, packageVersion: version, packageSetVersion: set.version }
 
   -- | List all the package sets versions available in the Registry repo
-  getAvailablePackageSets :: Spago (LogEnv _) (Array Version)
+  getAvailablePackageSets :: ∀ a. Spago (LogEnv a) (Array Version)
   getAvailablePackageSets = do
     { success: setVersions, fail: parseFailures } <- map (partitionEithers <<< map parseSetVersion) $ FS.ls Paths.packageSetsPath
 
@@ -199,7 +225,7 @@ getRegistryFns registryBox registryLock = do
   readPackageSetImpl :: Version -> Spago (LogEnv ()) PackageSet
   readPackageSetImpl setVersion = do
     logDebug "Reading the package set from the Registry repo..."
-    let packageSetPath = Path.concat [ Paths.packageSetsPath, Version.print setVersion <> ".json" ]
+    let packageSetPath = Paths.packageSetsPath </> (Version.print setVersion <> ".json")
     liftAff (FS.readJsonFile PackageSet.codec packageSetPath) >>= case _ of
       Left err -> die $ "Couldn't read the package set: " <> err
       Right registryPackageSet -> do
@@ -208,9 +234,9 @@ getRegistryFns registryBox registryLock = do
 
 -- Metadata can change over time (unpublished packages, and new packages), so we need
 -- to read it from file every time we have a fresh Registry
-getMetadataImpl :: Db -> PackageName -> Spago (LogEnv ()) (Either String Metadata)
-getMetadataImpl db name =
-  getMetadataForPackagesImpl db [ name ]
+getMetadataImpl :: Db -> OnlineStatus -> PackageName -> Spago (LogEnv ()) (Either String Metadata)
+getMetadataImpl db onlineStatus name =
+  getMetadataForPackagesImpl db onlineStatus [ name ]
     <#> case _ of
       Left err -> Left err
       Right metadataMap -> case Map.lookup name metadataMap of
@@ -218,33 +244,34 @@ getMetadataImpl db name =
         Just metadata -> Right metadata
 
 -- Parallelised version of `getMetadataImpl`
-getMetadataForPackagesImpl :: Db -> Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
-getMetadataForPackagesImpl db names = do
-  -- we first try reading it from the DB
-  liftEffect (Db.getMetadataForPackages db names) >>= \metadatas -> do
-    { fail, success } <- partitionEithers <$> parTraverseSpago
-      ( \name -> do
-          case Map.lookup name metadatas of
-            Nothing ->
-              -- if we don't have it we try reading it from file
-              metadataFromFile name >>= case _ of
-                Left e -> pure (Left e)
-                Right m -> do
-                  -- and memoize it
-                  liftEffect (Db.insertMetadata db name m)
-                  pure (Right $ name /\ m)
-            Just m -> pure $ Right $ name /\ m
-      )
-      names
-    case Array.head fail of
-      Nothing -> pure $ Right $ Map.fromFoldable success
-      Just f -> pure $ Left $ f
-
+getMetadataForPackagesImpl :: Db -> OnlineStatus -> Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
+getMetadataForPackagesImpl db onlineStatus names = do
+  (map Map.fromFoldable <<< sequence) <$> case onlineStatus == OnlineBypassCache of
+    true -> do
+      logDebug "Bypassing cache, reading metadata from file"
+      parTraverseSpago metadataFromFile names
+    false -> do
+      -- the first layer of caching is in the DB, so we try that first
+      metadatas <- liftEffect $ Db.getMetadataForPackages db names
+      parTraverseSpago
+        ( \name -> do
+            case Map.lookup name metadatas of
+              -- if we don't have it in cache we try reading it from file
+              Nothing -> metadataFromFile name
+              Just m -> pure $ Right $ name /\ m
+        )
+        names
   where
+  metadataFromFile :: PackageName -> Spago (LogEnv ()) (Either String (Tuple PackageName Metadata))
   metadataFromFile pkgName = do
-    let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print pkgName <> ".json" ]
-    logDebug $ "Reading metadata from file: " <> metadataFilePath
-    liftAff (FS.readJsonFile Metadata.codec metadataFilePath)
+    let metadataFilePath = Paths.registryPath </> Registry.Constants.metadataDirectory </> (PackageName.print pkgName <> ".json")
+    logDebug $ "Reading metadata from file: " <> Path.quote metadataFilePath
+    liftAff (FS.readJsonFile Metadata.codec metadataFilePath) >>= case _ of
+      Left e -> pure $ Left e
+      Right m -> do
+        -- memoize it if found
+        liftEffect (Db.insertMetadata db pkgName m)
+        pure $ Right (pkgName /\ m)
 
 -- Manifests are immutable so we can just lookup in the DB or read from file if not there
 getManifestFromIndexImpl :: Db -> PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
@@ -255,7 +282,7 @@ getManifestFromIndexImpl db name version = do
       -- if we don't have it we need to read it from file
       -- (note that we have all the versions of a package in the same file)
       logDebug $ "Reading package from Index: " <> PackageName.print name
-      maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
+      maybeManifests <- liftAff $ ManifestIndex.readEntryFile (Path.toRaw Paths.registryIndexPath) name
       manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
         Right ms -> pure $ NonEmptyArray.toUnfoldable ms
         Left err -> do
@@ -323,7 +350,7 @@ isVersionCompatible installedVersion minVersion =
       _, _ -> false
 
 -- | Check if we have fetched the registry recently enough, so we don't hit the net all the time
-shouldFetchRegistryRepos :: forall a. Db -> Spago (LogEnv a) Boolean
+shouldFetchRegistryRepos :: ∀ a. Db -> Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos db = do
   now <- liftEffect $ Now.nowDateTime
   let registryKey = "registry"
@@ -347,3 +374,118 @@ shouldFetchRegistryRepos db = do
         pure true
       else do
         pure false
+
+--------------------------------------------------------------------------------
+-- | Registry operations
+--------------------------------------------------------------------------------
+
+data JobType = Publish | Transfer | Unpublish
+
+printJobType :: JobType -> String
+printJobType = case _ of
+  Publish -> "Publish"
+  Transfer -> "Transfer"
+  Unpublish -> "Unpublish"
+
+submitRegistryOperation :: Operation.PackageOperation -> Spago (GitEnv _) Unit
+submitRegistryOperation payload = do
+  { jobId, jobType } <- case payload of
+    Operation.Publish publishData -> do
+      { jobId } <- callRegistry (baseApi <> Duplex.print V1.routes V1.Publish) V1.jobCreatedResponseCodec (Just { codec: Operation.publishCodec, data: publishData })
+      pure { jobId, jobType: Publish }
+    Operation.Authenticated authedData@{ payload: Operation.Transfer _ } -> do
+      { jobId } <- callRegistry (baseApi <> Duplex.print V1.routes V1.Transfer) V1.jobCreatedResponseCodec (Just { codec: Operation.authenticatedCodec, data: authedData })
+      pure { jobId, jobType: Transfer }
+    Operation.Authenticated authedData@{ payload: Operation.Unpublish _ } -> do
+      { jobId } <- callRegistry (baseApi <> Duplex.print V1.routes V1.Unpublish) V1.jobCreatedResponseCodec (Just { codec: Operation.authenticatedCodec, data: authedData })
+      pure { jobId, jobType: Unpublish }
+  logSuccess $ "Registry accepted the " <> printJobType jobType <> " request and is processing..."
+  logDebug $ "Job ID: " <> unwrap jobId
+  logInfo "Logs from the Registry pipeline:"
+  waitForJobFinish { jobId, jobType }
+
+callRegistry :: forall env a b. String -> CJ.Codec b -> Maybe { codec :: CJ.Codec a, data :: a } -> Spago (GitEnv env) b
+callRegistry url outputCodec maybeInput = handleError do
+  logDebug $ "Calling registry at " <> url
+  response <- liftAff $ withBackoff' $ try case maybeInput of
+    Just { codec: inputCodec, data: input } -> Http.fetch url
+      { method: Http.POST
+      , headers: { "Content-Type": "application/json" }
+      , body: Json.stringifyJson inputCodec input
+      }
+    Nothing -> Http.fetch url { method: Http.GET }
+  case response of
+    Nothing -> pure $ Left $ "Could not reach the registry at " <> url
+    Just (Left err) -> pure $ Left $ "Error while calling the registry:\n  " <> Exception.message err
+    Just (Right { status, text }) | status /= 200 -> do
+      bodyText <- liftAff text
+      pure $ Left $ "Registry did not like this and answered with status " <> show status <> ", got answer:\n  " <> bodyText
+    Just (Right { json }) -> do
+      jsonBody <- Json.unsafeFromForeign <$> liftAff json
+      pure $ case CJ.decode outputCodec jsonBody of
+        Right output -> Right output
+        Left err -> Left $ "Could not parse response from the registry, error: " <> show err
+  where
+  -- TODO: see if we want to just kill the process generically here, or give out customized errors
+  handleError a = do
+    { offline } <- ask
+    case offline of
+      Offline -> die "Spago is offline - not able to call the Registry."
+      _ -> a >>= case _ of
+        Left err -> die err
+        Right res -> pure res
+
+waitForJobFinish :: forall env. { jobId :: V1.JobId, jobType :: JobType } -> Spago (GitEnv env) Unit
+waitForJobFinish { jobId, jobType } = go Nothing
+  where
+  go :: Maybe DateTime -> Spago (GitEnv env) Unit
+  go lastTimestamp = do
+    { logOptions } <- ask
+    let
+      url = baseApi <> Duplex.print V1.routes
+        ( V1.Job jobId
+            { since: lastTimestamp
+            , level: case logOptions.verbosity of
+                LogVerbose -> Just V1.Debug
+                _ -> Just V1.Info
+            }
+        )
+    jobInfo :: V1.Job <- callRegistry url V1.jobCodec Nothing
+    -- first of all, print all the logs we get
+    for_ jobInfo.logs \log -> do
+      let line = indent $ toDoc $ DateTime.format Internal.Format.iso8601DateTime log.timestamp <> " " <> log.message
+      case log.level of
+        V1.Debug -> logDebug line
+        V1.Info -> logInfo line
+        V1.Warn -> logWarn line
+        V1.Error -> logError line
+    case jobInfo.finishedAt of
+      Nothing -> do
+        -- If the job is not finished, we grab the timestamp of the last log line, wait a bit and retry
+        let
+          latestTimestamp = jobInfo.logs # Array.last # case _ of
+            Just log -> Just log.timestamp
+            Nothing -> lastTimestamp
+        liftAff $ Aff.delay $ Milliseconds 500.0
+        go latestTimestamp
+      Just _finishedAt -> do
+        -- if it's done we report the failure.
+        logDebug $ "Job: " <> printJson V1.jobCodec jobInfo
+        case jobInfo.success of
+          false -> die $ toDoc
+            [ "Registry finished processing the package, but it failed."
+            , "If this was due to the package not meeting the requirements, you can find more info in the logs above, and try again."
+            , "If you think this was a mistake, please report it to the core team: https://github.com/purescript/registry-dev/issues"
+            ]
+          true -> do
+            let
+              verb = case jobType of
+                Publish -> "published"
+                Transfer -> "transferred"
+                Unpublish -> "unpublished"
+            logSuccess $ "Registry finished processing the package. Your package was " <> verb <> " successfully!"
+            -- TODO: I am not sure why, but this is needed to make the process exit, otherwise Spago will hang
+            liftEffect $ Process.exit
+
+baseApi :: String
+baseApi = "https://registry.purescript.org"

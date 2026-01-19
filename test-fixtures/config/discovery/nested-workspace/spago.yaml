@@ -1,0 +1,8 @@
+package:
+  name: nested-workspace
+  dependencies:
+    - prelude
+
+workspace:
+  packageSet:
+    registry: 41.5.0

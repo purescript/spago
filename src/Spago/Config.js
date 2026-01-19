@@ -19,8 +19,8 @@ export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
     }
   })();
 
-  // Stringify this collection as 
-  //  - dep1 
+  // Stringify this collection as
+  //  - dep1
   //  - dep2
   // rather than
   //  [ dep1, dep2 ]
@@ -96,6 +96,15 @@ export function addRangesToConfigImpl(doc, rangesMap) {
   deps.items = newItems;
 }
 
+// Note: this function assumes a few things:
+// - the `publish` section exists
+// - the new element does not already exist in the list (it just appends it)
+export function addOwnerImpl(doc, owner) {
+  const publish = doc.get("package").get("publish");
+  let owners = getOrElse(publish, "owners", doc.createNode([]));
+  owners.items.push(doc.createNode(owner));
+}
+
 export function setPackageSetVersionInConfigImpl(doc, version) {
   doc.setIn(["workspace", "packageSet", "registry"], version);
 }
@@ -120,4 +129,8 @@ export function migrateV1ConfigImpl(doc) {
   if (hasChanged) {
     return doc;
   }
+}
+
+export function addPublishLocationToConfigImpl(doc, location) {
+  doc.setIn(["package", "publish", "location"], location);
 }
