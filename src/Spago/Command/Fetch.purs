@@ -178,11 +178,13 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
 
     -- For solver-based projects, always ensure ranges (they're required for the solver to work)
     -- For package-set projects, only add ranges if explicitly requested
+    -- Note: we can only add ranges if we have a target package (selected or root)
     let
       isSolverBuild = case currentWorkspace.packageSet.buildType of
         RegistrySolverBuild _ -> true
         PackageSetBuild _ _ -> false
-      shouldEnsureRanges = ensureRanges || isSolverBuild
+      hasTargetPackage = isJust currentWorkspace.selected || isJust currentWorkspace.rootPackage
+      shouldEnsureRanges = (ensureRanges || isSolverBuild) && hasTargetPackage
 
     when shouldEnsureRanges do
       { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
