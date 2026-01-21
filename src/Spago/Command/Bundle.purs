@@ -3,14 +3,21 @@ module Spago.Command.Bundle where
 import Spago.Prelude
 
 import Data.Array (all, fold, take)
+import Data.Array.NonEmpty as NEA
+import Data.Map as Map
 import Data.String as Str
 import Data.String.Utils (startsWith)
 import Spago.Cmd as Cmd
+import Spago.Command.Build as Build
+import Spago.Command.Fetch as Fetch
 import Spago.Config (BundlePlatform(..), BundleType(..), Workspace, WorkspacePackage)
 import Spago.Esbuild (Esbuild)
 import Spago.FS as FS
 import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Path as Path
+import Spago.Purs (Purs, ModuleGraph(..))
+import Spago.Purs as Purs
+import Spago.Purs.EntryPoint as EntryPoint
 
 type BundleEnv a =
   { esbuild :: Esbuild
@@ -19,6 +26,8 @@ type BundleEnv a =
   , bundleOptions :: BundleOptions
   , workspace :: Workspace
   , selected :: WorkspacePackage
+  , purs :: Purs
+  , dependencies :: Fetch.PackageTransitiveDeps
   | a
   }
 
@@ -86,6 +95,10 @@ run = do
       , entrypoint
       ]
 
+  -- Check that the entry module exports a `main` function when bundling an app
+  when (opts.type == BundleApp) do
+    validateMainExport opts.module
+
   -- FIXME: remove this after 2024-12-01
   whenM (FS.exists $ rootPath </> checkWatermarkMarkerFileName)
     $ unless opts.force
@@ -146,3 +159,44 @@ nodeTargetPolyfill = Str.joinWith ";"
   , "const __dirname = __path.dirname(__url.fileURLToPath(import.meta.url))"
   , "const __filename=new URL(import.meta.url).pathname"
   ]
+
+-- | Validate that the entry module declares and exports a `main` function
+validateMainExport :: forall a. String -> Spago (BundleEnv a) Unit
+validateMainExport moduleName = do
+  { rootPath, selected, dependencies } <- ask
+
+  let
+    globs = Build.getBuildGlobs
+      { rootPath
+      , dependencies: Fetch.toAllDependencies dependencies
+      , depsOnly: false
+      , withTests: false
+      , selected: NEA.singleton selected
+      }
+
+  Purs.graph rootPath globs [] >>= case _ of
+    Left err -> logWarn $ "Could not verify main export: " <> show err
+    Right (ModuleGraph graph) ->
+      case Map.lookup moduleName graph of
+        Nothing ->
+          die
+            [ "Cannot bundle app: module " <> moduleName <> " was not found in the build."
+            , ""
+            , "Make sure the module exists and is included in your build."
+            ]
+        Just { path } -> do
+          sourceCode <- FS.readTextFile (rootPath </> path)
+          case EntryPoint.hasMainExport sourceCode of
+            EntryPoint.MainExported -> pure unit
+            EntryPoint.MainNotDeclared ->
+              die
+                [ "Cannot bundle app: module " <> moduleName <> " does not declare a `main` function."
+                , "If you want to create a bundle without an entry point, use --bundle-type=module instead."
+                ]
+            EntryPoint.MainNotExported ->
+              die
+                [ "Cannot bundle app: module " <> moduleName <> " does not export `main`."
+                , "Add `main` to the module's export list, remove the explicit export list, or use --bundle-type=module."
+                ]
+            EntryPoint.ParseError err ->
+              logWarn $ "Could not verify main export: " <> err

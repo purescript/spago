@@ -41,6 +41,7 @@ package:
     - http-methods
     - integers
     - json
+    - language-cst-parser
     - lists
     - maybe
     - newtype
