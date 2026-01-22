@@ -220,13 +220,13 @@ fetchPackagesToLocalCache packages = do
   { offline, workspace } <- ask
   -- Build a map of expected integrities from the lockfile for verification
   let
-    lockfileIntegrities :: Map PackageName Sha256
+    lockfileIntegrities :: Map (Tuple PackageName Version) Sha256
     lockfileIntegrities = case workspace.packageSet.lockfile of
       Left _ -> Map.empty
-      Right lockfile -> Map.mapMaybe extractRegistryIntegrity lockfile.packages
+      Right lockfile -> Map.fromFoldable $ Array.mapMaybe extractRegistryIntegrity $ Map.toUnfoldable lockfile.packages
       where
       extractRegistryIntegrity = case _ of
-        FromRegistry { integrity } -> Just integrity
+        Tuple name (FromRegistry { version, integrity }) -> Just $ Tuple (Tuple name version) integrity
         _ -> Nothing
   -- Before starting to fetch packages we build a Map of AVars to act as locks for each git location.
   -- This is so we don't have two threads trying to clone the same repo at the same time.
@@ -257,11 +257,15 @@ fetchPackagesToLocalCache packages = do
           Right versionMetadata -> do
             logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
             -- Verify that the lockfile integrity matches the registry metadata
-            case Map.lookup name lockfileIntegrities of
+            case Map.lookup (Tuple name v) lockfileIntegrities of
               Just expectedIntegrity | expectedIntegrity /= versionMetadata.hash ->
-                logWarn $ "Package " <> packageVersion
-                  <> " has a different hash in the lockfile (" <> Sha256.print expectedIntegrity
-                  <> ") than in the registry metadata (" <> Sha256.print versionMetadata.hash <> ")"
+                logWarn $ Array.intercalate "\n"
+                  [ "Package " <> packageVersion <> " has a different hash in the lockfile"
+                  , "  (" <> Sha256.print expectedIntegrity <> ")"
+                  , "than in the registry metadata"
+                  , "  (" <> Sha256.print versionMetadata.hash <> ")."
+                  , "This shouldn't really happen, so please open an issue at https://github.com/purescript/spago/issues"
+                  ]
               _ -> pure unit
             -- then check if we have a tarball cached. If not, download it
             let globalCachePackagePath = Paths.globalCachePath </> "packages" </> PackageName.print name
