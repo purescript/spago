@@ -7,10 +7,10 @@ import Test.Prelude
 
 import Data.Array as Array
 import Data.Map as Map
+import Data.String as String
 import Effect.Now as Now
 import Registry.Version as Version
 import Spago.Command.Init as Init
-import Spago.Cmd as Cmd
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.Core.Config as Config
 import Spago.FS as FS
@@ -137,6 +137,61 @@ spec = Spec.around withTempDir do
       spago [ "init" ] >>= shouldBeSuccess
       writeConfigWithEither testCwd
       spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
+
+    Spec.it "skips cloning during resolution when git package has declared deps" \{ spago, testCwd, fixture } -> do
+      FS.copyFile { src: fixture "git-declared-deps/with-declared-deps.yaml", dst: testCwd </> "spago.yaml" }
+      FS.mkdirp (testCwd </> "src")
+      FS.writeTextFile (testCwd </> "src/Main.purs") "module Main where"
+
+      -- first build: cloning should happen AFTER "Downloading dependencies..." (during fetch phase)
+      result1 <- spago [ "build" ]
+      result1 # shouldBeSuccess
+      let stderr1 = either _.stderr _.stderr result1
+      let downloadingIdx = String.indexOf (String.Pattern "Downloading dependencies...") stderr1
+      let cloningIdx = String.indexOf (String.Pattern "Cloning") stderr1
+      case downloadingIdx, cloningIdx of
+        Just d, Just c -> d `Assert.shouldSatisfy` \_ -> d < c
+        _, _ -> Assertions.fail $ "Expected 'Downloading dependencies...' before 'Cloning' but got:\n" <> stderr1
+
+      -- Verify lockfile was created with correct content
+      checkFixture (testCwd </> "spago.lock") (fixture "git-declared-deps/spago.lock")
+
+      -- Second build: remove .spago cache, lockfile should still defer cloning to fetch phase
+      rmRf (testCwd </> ".spago")
+      result2 <- spago [ "build" ]
+      result2 # shouldBeSuccess
+      let stderr2 = either _.stderr _.stderr result2
+      let downloadingIdx2 = String.indexOf (String.Pattern "Downloading dependencies...") stderr2
+      let cloningIdx2 = String.indexOf (String.Pattern "Cloning") stderr2
+      case downloadingIdx2, cloningIdx2 of
+        Just d, Just c -> d `Assert.shouldSatisfy` \_ -> d < c
+        _, _ -> Assertions.fail $ "Expected 'Downloading dependencies...' before 'Cloning' but got:\n" <> stderr2
+      -- Lockfile should not be regenerated
+      when (isJust $ String.indexOf (String.Pattern "generating it") stderr2) do
+        Assertions.fail $ "Lockfile was regenerated unexpectedly:\n" <> stderr2
+
+      -- Third build (offline): should work because package is cached
+      spago [ "build", "--offline" ] >>= shouldBeSuccess
+
+    Spec.it "must clone during resolution when git package has no declared deps" \{ spago, testCwd, fixture } -> do
+      libRepo <- mkGitRepo testCwd { name: "mylib", deps: [ "prelude" ] }
+      -- Set up consumer project with git dep (no declared deps)
+      FS.mkdirp (testCwd </> "src")
+      FS.writeTextFile (testCwd </> "src/Main.purs") "module Main where\nimport MYLIB.Main\n"
+      -- Use fixture with placeholder replacement (like 1208 test)
+      content <- FS.readTextFile $ fixture "git-declared-deps/without-declared-deps.yaml"
+      FS.writeTextFile (testCwd </> "spago.yaml") $
+        String.replaceAll (String.Pattern "<library-repo-path>") (String.Replacement $ Path.toRaw libRepo) content
+      -- Without declared deps, spago must clone to read spago.yaml from the repo.
+      -- "Cloning" should appear BEFORE "Downloading dependencies..."
+      result <- spago [ "build" ]
+      result # shouldBeSuccess
+      let stderr = either _.stderr _.stderr result
+      let downloadingIdx = String.indexOf (String.Pattern "Downloading dependencies...") stderr
+      let cloningIdx = String.indexOf (String.Pattern "Cloning") stderr
+      case downloadingIdx, cloningIdx of
+        Just d, Just c -> c `Assert.shouldSatisfy` \_ -> c < d
+        _, _ -> Assertions.fail $ "Expected 'Cloning' before 'Downloading dependencies...' but got:\n" <> stderr
 
     Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
@@ -272,7 +327,6 @@ spec = Spec.around withTempDir do
       spago [ "install", "either" ] >>= shouldBeSuccess
       checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-solver-ranges.yaml")
 
-
 insertConfigDependencies :: Config -> Dependencies -> Dependencies -> Config
 insertConfigDependencies config core test =
   ( config
@@ -382,12 +436,3 @@ forceResetSpec = Spec.around withTempDir do
       content1 `shouldEqualStr` "content1"
       content2 <- FS.readTextFile (cachedRepo </> "file2.txt")
       content2 `shouldEqualStr` "content2-updated"
-
-git :: Array String -> Aff Unit
-git = git' Nothing
-
-git' :: Maybe GlobalPath -> Array String -> Aff Unit
-git' cwd args =
-  Cmd.exec (Path.global "git") args
-    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
-    >>= shouldBeSuccess

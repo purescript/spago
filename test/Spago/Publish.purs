@@ -11,9 +11,7 @@ import Data.String.Regex as Regex
 import Data.String.Regex.Flags as RF
 import Node.Platform as Platform
 import Node.Process as Process
-import Spago.Cmd as Cmd
 import Spago.FS as FS
-import Spago.Path as Path
 import Test.Spec (Spec)
 import Test.Spec as Spec
 
@@ -195,12 +193,3 @@ doTheGitThing = do
   git [ "commit", "-m", "first" ]
   git [ "tag", "v0.0.1" ]
   git [ "remote", "add", "origin", "git@github.com:purescript/aaa.git" ]
-
-git :: Array String -> Aff Unit
-git = git' Nothing
-
-git' :: Maybe GlobalPath -> Array String -> Aff Unit
-git' cwd args =
-  Cmd.exec (Path.global "git") args
-    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
-    >>= shouldBeSuccess
