@@ -1,0 +1,9 @@
+package:
+  name: package-a
+  dependencies:
+    - prelude
+  build:
+    strict: true
+  test:
+    main: Src.PACKAGE.A.Test
+    dependencies: []
