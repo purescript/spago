@@ -143,6 +143,36 @@ spec = Spec.around withTempDir do
         , result: isRight
         }
 
+    Spec.it "should censor UserDefinedWarning with byPrefix matching just the user content" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "build/censor-user-defined-warning", dst: testCwd </> "." }
+
+      let
+        warningTexts =
+          [ escapePathInErrMsg [ "src", "Main.purs" ]
+          , "UserDefinedWarning"
+          , "A custom warning occurred while solving type class constraints"
+          , "This is a custom warning that should be censored"
+          ]
+        shouldHaveWarning = assertWarning warningTexts true
+        shouldNotHaveWarning = assertWarning warningTexts false
+
+      -- First, verify the warning IS censored with byPrefix matching user content
+      spago [ "build" ] >>= check
+        { stdout: mempty
+        , stderr: shouldNotHaveWarning
+        , result: isRight
+        }
+
+      -- Now remove the censor config and verify the warning DOES appear
+      FS.unlink $ testCwd </> "spago.yaml"
+      FS.moveSync { src: testCwd </> "spago-no-censor.yaml", dst: testCwd </> "spago.yaml" }
+      rmRf $ testCwd </> "output"
+      spago [ "build" ] >>= check
+        { stdout: mempty
+        , stderr: shouldHaveWarning
+        , result: isRight
+        }
+
     Spec.describe "lockfile" do
       Spec.it "building with a lockfile doesn't need the Registry repo" \{ spago, fixture, testCwd } -> do
         spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess

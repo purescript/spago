@@ -176,10 +176,21 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
       doc <- justOrDieWith yamlDoc Config.configDocMissingErrorMessage
       liftAff $ Config.addPackagesToConfig configPath doc isTest actualPackagesToInstall
 
-    -- if the flag is selected, we kick off the process of adding ranges to the config
-    when ensureRanges do
+    -- For solver-based projects, always ensure ranges (they're required for the solver to work)
+    -- For package-set projects, only add ranges if explicitly requested
+    -- Note: we can only add ranges if we have a target package (selected or root)
+    -- If user explicitly passed --ensure-ranges, we should error if there's no target package
+    -- If it's implicitly enabled (solver build), we silently skip when there's no target
+    let
+      isSolverBuild = case currentWorkspace.packageSet.buildType of
+        RegistrySolverBuild _ -> true
+        PackageSetBuild _ _ -> false
+      hasTargetPackage = isJust currentWorkspace.selected || isJust currentWorkspace.rootPackage
+      shouldEnsureRanges = ensureRanges || (isSolverBuild && hasTargetPackage)
+
+    when shouldEnsureRanges do
       { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
-      logInfo $ "Adding ranges to core dependencies to the config in " <> Path.quote configPath
+      logInfo $ "Adding dependency ranges to the config in " <> Path.quote configPath
       packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
         "Impossible: package dependencies must be in dependencies map"
       let rangeMap = map getRangeFromPackage packageDeps.core
@@ -499,6 +510,14 @@ getGitPackageInLocalCache name package = do
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
 getPackageDependencies packageName package = case package of
   RegistryVersion v -> do
+    -- Check if registry-index exists when offline
+    whenM (asks _.offline <#> eq Offline) do
+      unlessM (FS.exists Paths.registryIndexPath) do
+        die
+          [ "You are offline and the Registry Index is not cached locally."
+          , "Cannot look up dependencies for " <> PackageName.print packageName <> "@" <> Version.print v
+          , "Please connect to the internet and run 'spago install' first."
+          ]
     maybeManifest <- Registry.getManifestFromIndex packageName v
     pure $ maybeManifest <#> \(Manifest m) -> { core: m.dependencies, test: Map.empty }
   GitPackage p -> do
