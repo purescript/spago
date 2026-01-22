@@ -1,0 +1,8 @@
+package:
+  name: censor-user-warning-test
+  dependencies:
+    - prelude
+
+workspace:
+  packageSet:
+    registry: 41.5.0
