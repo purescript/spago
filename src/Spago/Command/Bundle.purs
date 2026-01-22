@@ -188,6 +188,8 @@ validateMainExport moduleName = do
           sourceCode <- FS.readTextFile (rootPath </> path)
           case EntryPoint.hasMainExport sourceCode of
             EntryPoint.MainExported -> pure unit
+            EntryPoint.MainWrongType ->
+              logWarn "The `main` function does not have the expected type `Effect Unit`. The bundle may not work correctly."
             EntryPoint.MainNotDeclared ->
               die
                 [ "Cannot bundle app: module " <> moduleName <> " does not declare a `main` function."
@@ -199,4 +201,4 @@ validateMainExport moduleName = do
                 , "Add `main` to the module's export list, remove the explicit export list, or use --bundle-type=module."
                 ]
             EntryPoint.ParseError err ->
-              logWarn $ "Could not verify main export: " <> err
+              logDebug $ "Could not verify main export: " <> err
