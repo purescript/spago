@@ -230,8 +230,10 @@ getRegistryFns registryBox registryLock = do
 
       pure setVersions
     else do
-      logDebug $ "Package sets directory does not exist at " <> Path.quote Paths.packageSetsPath
-      pure []
+      die
+        [ "Package sets directory does not exist at " <> Path.quote Paths.packageSetsPath
+        , "Please connect to the internet and run 'spago install' to populate the registry cache."
+        ]
     where
     parseSetVersion str = Version.parse case String.stripSuffix (Pattern ".json") str of
       Nothing -> str
