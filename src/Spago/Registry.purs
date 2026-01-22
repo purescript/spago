@@ -192,11 +192,9 @@ getRegistryFns registryBox registryLock = do
     -- Check if registry directories exist when offline - the build should have already failed by now, but just in case..
     case offline of
       Offline -> do
-        registryExists <- FS.exists Paths.registryPath
-        registryIndexExists <- FS.exists Paths.registryIndexPath
-        unless registryExists do
+        unlessM (FS.exists Paths.registryPath) $
           die "You are offline and the Registry is not cached locally. Please connect to the internet and run 'spago install' to cache the registry."
-        unless registryIndexExists do
+        unlessM (FS.exists Paths.registryIndexPath) $
           die "You are offline and the Registry Index is not cached locally. Please connect to the internet and run 'spago install' to cache the registry index."
       _ -> pure unit
 

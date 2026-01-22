@@ -508,11 +508,9 @@ getGitPackageInLocalCache name package = do
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
 getPackageDependencies packageName package = case package of
   RegistryVersion v -> do
-    { offline } <- ask
     -- Check if registry-index exists when offline
-    when (offline == Offline) do
-      indexExists <- FS.exists Paths.registryIndexPath
-      unless indexExists do
+    whenM (asks _.offline <#> eq Offline) do
+      unlessM (FS.exists Paths.registryIndexPath) do
         die
           [ "You are offline and the Registry Index is not cached locally."
           , "Cannot look up dependencies for " <> PackageName.print packageName <> "@" <> Version.print v
