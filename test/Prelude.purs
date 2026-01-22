@@ -122,17 +122,17 @@ shouldEqualStr v1 v2 =
       ]
 
 checkFixture :: ∀ path. IsPath path => path -> FixturePath -> Aff Unit
-checkFixture filepath fixturePath = checkFixture' filepath fixturePath (shouldEqualStr `on` String.trim)
+checkFixture filepath fixturePath = checkFixture' filepath fixturePath identity (shouldEqualStr `on` String.trim)
 
-checkFixture' :: ∀ path. IsPath path => path -> FixturePath -> (String -> String -> Aff Unit) -> Aff Unit
-checkFixture' filepath fixturePath assertEqual = do
+checkFixture' :: ∀ path. IsPath path => path -> FixturePath -> (String -> String) -> (String -> String -> Aff Unit) -> Aff Unit
+checkFixture' filepath fixturePath normalizeForFixture assertEqual = do
   filecontent <- FS.readTextFile filepath
   overwriteSpecFile <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_ACCEPT"
   if overwriteSpecFile then do
     Console.log $ "Overwriting fixture at path: " <> Path.quote fixturePath
     let parentDir = Path.dirname fixturePath
     unlessM (FS.exists parentDir) $ FS.mkdirp parentDir
-    FS.writeTextFile fixturePath (String.trim filecontent <> "\n")
+    FS.writeTextFile fixturePath (String.trim (normalizeForFixture filecontent) <> "\n")
   else do
     expected <- FS.readTextFile fixturePath
     filecontent `assertEqual` expected
