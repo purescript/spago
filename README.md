@@ -1,6 +1,6 @@
 # spago
 
-![NPM Version (with dist tag)](https://img.shields.io/npm/v/spago/next)
+[![NPM Version (with dist tag)](https://img.shields.io/npm/v/spago/next)](https://www.npmjs.com/package/spago/v/next)
 ![Latest release](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpurescript%2Fspago%2Frefs%2Fheads%2Fmaster%2Fspago.yaml&query=package.publish.version&prefix=v&label=release)
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![nix-flake](https://github.com/purescript/spago/actions/workflows/nix-flake.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/nix-flake.yml)
@@ -1394,12 +1394,12 @@ workspace:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
 
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.
@@ -1450,12 +1450,12 @@ package:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
     # Convert compiler warnings for files in this package's src code
     # into errors that can fail the build.
     # Optional and defaults to false
@@ -1518,12 +1518,12 @@ package:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
     # Convert compiler warnings for files from this package's test code
     # into errors that can fail the build.
     # Optional and defaults to false

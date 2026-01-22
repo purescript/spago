@@ -66,3 +66,4 @@ main = do
         Glob.spec
         Errors.spec
         Config.spec
+        Install.forceResetSpec

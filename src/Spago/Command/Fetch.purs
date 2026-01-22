@@ -176,10 +176,21 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
       doc <- justOrDieWith yamlDoc Config.configDocMissingErrorMessage
       liftAff $ Config.addPackagesToConfig configPath doc isTest actualPackagesToInstall
 
-    -- if the flag is selected, we kick off the process of adding ranges to the config
-    when ensureRanges do
+    -- For solver-based projects, always ensure ranges (they're required for the solver to work)
+    -- For package-set projects, only add ranges if explicitly requested
+    -- Note: we can only add ranges if we have a target package (selected or root)
+    -- If user explicitly passed --ensure-ranges, we should error if there's no target package
+    -- If it's implicitly enabled (solver build), we silently skip when there's no target
+    let
+      isSolverBuild = case currentWorkspace.packageSet.buildType of
+        RegistrySolverBuild _ -> true
+        PackageSetBuild _ _ -> false
+      hasTargetPackage = isJust currentWorkspace.selected || isJust currentWorkspace.rootPackage
+      shouldEnsureRanges = ensureRanges || (isSolverBuild && hasTargetPackage)
+
+    when shouldEnsureRanges do
       { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
-      logInfo $ "Adding ranges to core dependencies to the config in " <> Path.quote configPath
+      logInfo $ "Adding dependency ranges to the config in " <> Path.quote configPath
       packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
         "Impossible: package dependencies must be in dependencies map"
       let rangeMap = map getRangeFromPackage packageDeps.core
