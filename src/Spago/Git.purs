@@ -97,9 +97,15 @@ checkout { repo, ref } = Except.runExceptT $ void $ runGit [ "checkout", ref ] (
 
 fetch :: ∀ a path. Path.IsPath path => { repo :: path, remote :: String } -> Spago (GitEnv a) (Either String Unit)
 fetch { repo, remote } = do
-  remoteUrl <- runGit [ "remote", "get-url", remote ] (Just $ Path.toGlobal repo) # Except.runExceptT >>= rightOrDie
-  logInfo $ "Fetching from " <> remoteUrl
-  Except.runExceptT $ runGit_ [ "fetch", remote, "--tags" ] (Just $ Path.toGlobal repo)
+  { offline } <- ask
+  case offline of
+    Offline -> do
+      logDebug $ "Skipping fetch from remote '" <> remote <> "' because we are offline"
+      pure $ Left "Cannot fetch from remote while offline."
+    _ -> do
+      remoteUrl <- runGit [ "remote", "get-url", remote ] (Just $ Path.toGlobal repo) # Except.runExceptT >>= rightOrDie
+      logInfo $ "Fetching from " <> remoteUrl
+      Except.runExceptT $ runGit_ [ "fetch", remote, "--tags" ] (Just $ Path.toGlobal repo)
 
 getRefType :: ∀ a path. Path.IsPath path => { repo :: path, ref :: String } -> Spago (GitEnv a) (Either String String)
 getRefType { repo, ref } = Except.runExceptT $ runGit [ "cat-file", "-t", ref ] (Just $ Path.toGlobal repo)
