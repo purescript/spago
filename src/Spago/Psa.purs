@@ -209,7 +209,9 @@ shouldPrintWarning = case _ of
 -- | This allows byPrefix to match just the user-defined content.
 stripUserWarningPreamble :: String -> String
 stripUserWarningPreamble msg =
-  let preamble = "A custom warning occurred while solving type class constraints:"
-  in case String.stripPrefix (String.Pattern preamble) msg of
-    Just rest -> String.trim rest
-    Nothing -> msg
+  let
+    preamble = "A custom warning occurred while solving type class constraints:"
+  in
+    case String.stripPrefix (String.Pattern preamble) msg of
+      Just rest -> String.trim rest
+      Nothing -> msg
