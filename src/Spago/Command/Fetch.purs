@@ -606,7 +606,7 @@ getTransitiveDeps workspacePackage = do
             , test: computeTransitiveDeps envs.test.dependencies
             }
           where
-          allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
+          allWorkspacePackages = Map.fromFoldable $ (_.package.name &&& WorkspacePackage) <$> Config.getWorkspacePackages workspace.packageSet
 
           -- Get direct dependencies of a package from the lockfile
           getDeps :: PackageName -> Set PackageName
