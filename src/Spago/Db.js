@@ -11,10 +11,10 @@ export const connectImpl = (databasePath, logger) => {
 
   const db = new DatabaseSync(databasePath, {
     enableForeignKeyConstraints: true,
+    timeout: 5000, // Wait up to 5s if database is locked (matches better-sqlite3 default)
   });
 
   db.exec("PRAGMA journal_mode = WAL");
-  db.exec("PRAGMA foreign_keys = ON");
 
   db.prepare(`CREATE TABLE IF NOT EXISTS package_sets
     ( version TEXT PRIMARY KEY NOT NULL
@@ -58,6 +58,17 @@ export const insertPackageSetEntryImpl = (db, packageSetEntry) => {
   db.prepare(
     "INSERT OR IGNORE INTO package_set_entries (packageSetVersion, packageName, packageVersion) VALUES (@packageSetVersion, @packageName, @packageVersion)"
   ).run(packageSetEntry);
+}
+
+export const withTransactionImpl = (db, action) => {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    action();
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
 }
 
 export const selectLatestPackageSetByCompilerImpl = (db, compiler) => {
