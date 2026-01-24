@@ -7,6 +7,7 @@ module Spago.Command.Fetch
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
   , getWorkspacePackageDeps
+  , getWorkspaceTransitiveDeps
   , fetchPackagesToLocalCache
   , run
   , toAllDependencies
@@ -25,6 +26,7 @@ import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
 import Data.Either as Either
 import Data.FunctorWithIndex (mapWithIndex)
+import Data.Profunctor.Strong ((&&&))
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.List as List
@@ -160,12 +162,9 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
 
   local (_ { workspace = workspace }) do
     -- We compute the transitive deps for all the packages in the workspace, but keep them
-    -- split by package - we need all of them so we can stash them in the lockfile, but we
+    -- split by package. We need all of them for the lockfile's workspace entries, but we
     -- are going to only download the ones that we need to, if e.g. there's a package selected
-    dependencies <- traverse getTransitiveDeps
-      $ Map.fromFoldable
-      $ map (\p -> Tuple p.package.name p)
-      $ Config.getWorkspacePackages workspace.packageSet
+    dependencies <- getWorkspaceTransitiveDeps
 
     for_ installingPackagesData \{ configPath, yamlDoc, actualPackagesToInstall } -> do
       let
@@ -574,6 +573,17 @@ type TransitiveDepsResult =
       }
   }
 
+-- | Compute transitive dependencies for all workspace packages.
+-- | This is used by multiple commands (fetch, uninstall) that need
+-- | to gather transitive deps for the entire workspace.
+getWorkspaceTransitiveDeps :: forall a. Spago (FetchEnv a) PackageTransitiveDeps
+getWorkspaceTransitiveDeps = do
+  { workspace } <- ask
+  traverse getTransitiveDeps
+    $ Map.fromFoldable
+    $ map (\p -> Tuple p.package.name p)
+    $ Config.getWorkspacePackages workspace.packageSet
+
 -- | For a given workspace package, returns a list of all its transitive
 -- | dependencies, but seperately for core and test.
 -- |
@@ -606,6 +616,14 @@ getTransitiveDeps workspacePackage = do
             , test: computeTransitiveDeps envs.test.dependencies
             }
           where
+          -- Note: this transitive closure logic is the same as the one that happens
+          -- in the Left branch, where we compute the package-set-based plan with
+          -- getTransitiveDepsFromPackageSet.
+          -- We could try to extract the overall logic from there, but we have instead
+          -- reimplemented it here since it's a pure traversal with no IO (since we
+          -- fetch dependencies as we compute the plan there), nor error handling
+          -- (cycles, missing packages), since all dependencies data in the lockfile
+          -- is pre-computed and known to be correct.
           allWorkspacePackages = Map.fromFoldable $ (_.package.name &&& WorkspacePackage) <$> Config.getWorkspacePackages workspace.packageSet
 
           -- Get direct dependencies of a package from the lockfile
