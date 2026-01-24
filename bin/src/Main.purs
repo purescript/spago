@@ -641,7 +641,7 @@ main = do
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             built <- runSpago buildEnv (Build.run options)
             when built do
-              bundleEnv <- runSpago env (mkBundleEnv args)
+              bundleEnv <- runSpago env (mkBundleEnv args buildEnv)
               runSpago bundleEnv Bundle.run
           Run args@{ selectedPackage, ensureRanges, pure } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges, pure, testDeps: false, isRepl: false, migrateConfig, offline }
@@ -719,8 +719,8 @@ main = do
       Left err -> die [ "Could not parse provided set version. Error:", show err ]
       Right v -> pure v
 
-mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
-mkBundleEnv bundleArgs = do
+mkBundleEnv :: forall a b. BundleArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
+mkBundleEnv bundleArgs { dependencies, purs } = do
   { workspace, logOptions, rootPath } <- ask
   logDebug $ "Bundle args: " <> show bundleArgs
 
@@ -777,7 +777,7 @@ mkBundleEnv bundleArgs = do
           }
       }
   esbuild <- Esbuild.getEsbuild
-  let bundleEnv = { esbuild, logOptions, rootPath, workspace: newWorkspace, selected, bundleOptions }
+  let bundleEnv = { esbuild, logOptions, rootPath, workspace: newWorkspace, selected, bundleOptions, purs, dependencies }
   pure bundleEnv
 
 mkRunEnv :: forall a b. RunArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
