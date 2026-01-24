@@ -2,6 +2,7 @@ module Test.Spago.Bundle where
 
 import Test.Prelude
 
+import Data.Array as Array
 import Data.String as Str
 import Spago.Command.Bundle (checkWatermarkMarkerFileName)
 import Spago.FS as FS
@@ -77,6 +78,36 @@ spec = Spec.around withTempDir do
       FS.writeTextFile (testCwd </> "index.js") "Bogus"
       spago [ "bundle" ] >>= shouldBeSuccess
       checkBundle (testCwd </> "index.js") (fixture "bundle-default.js")
+
+    Spec.it "checks that main is declared and exported when bundling app" \{ spago, fixture, testCwd } -> do
+      spago [ "init", "--name", "test-package" ] >>= shouldBeSuccess
+
+      -- Module without main: app bundle fails, module bundle succeeds
+      FS.writeTextFile (testCwd </> "src" </> "Main.purs") $ writeMain
+        [ "import Prelude"
+        , ""
+        , "foo :: Int"
+        , "foo = 42"
+        ]
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "bundle", "--bundle-type", "app" ] >>= shouldBeFailureErr (fixture "bundle-no-main-error.txt")
+      spago [ "bundle", "--bundle-type", "module", "--outfile", "bundle.js" ] >>= shouldBeSuccess
+
+      -- Module with main not exported: app bundle fails
+      FS.writeTextFile (testCwd </> "src" </> "Main.purs") $ Array.intercalate "\n"
+        [ "module Main (foo) where"
+        , ""
+        , "import Prelude"
+        , "import Effect (Effect)"
+        , ""
+        , "foo :: Int"
+        , "foo = 42"
+        , ""
+        , "main :: Effect Unit"
+        , "main = pure unit"
+        ]
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "bundle", "--bundle-type", "app" ] >>= shouldBeFailureErr (fixture "bundle-main-not-exported-error.txt")
 
   where
   -- This is a version of `checkFixture`, but it replaces the "v0" placeholder
