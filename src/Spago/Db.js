@@ -43,13 +43,13 @@ export const connectImpl = (path, logger) => {
 
 export const insertPackageSetImpl = (db, packageSet) => {
   db.prepare(
-    "INSERT INTO package_sets (version, compiler, date) VALUES (@version, @compiler, @date)"
+    "INSERT OR IGNORE INTO package_sets (version, compiler, date) VALUES (@version, @compiler, @date)"
   ).run(packageSet);
 };
 
 export const insertPackageSetEntryImpl = (db, packageSetEntry) => {
   db.prepare(
-    "INSERT INTO package_set_entries (packageSetVersion, packageName, packageVersion) VALUES (@packageSetVersion, @packageName, @packageVersion)"
+    "INSERT OR IGNORE INTO package_set_entries (packageSetVersion, packageName, packageVersion) VALUES (@packageSetVersion, @packageName, @packageVersion)"
   ).run(packageSetEntry);
 }
 
