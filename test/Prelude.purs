@@ -65,7 +65,7 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
       spago' stdin args =
         Cmd.exec
           (Path.global "node")
-          ([ Path.toRaw $ oldCwd </> "bin" </> "index.dev.js" ] <> args)
+          ([ "--no-warnings=ExperimentalWarning", Path.toRaw $ oldCwd </> "bin" </> "index.dev.js" ] <> args)
           $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = stdin }
 
       spago = spago' StdinNewPipe
