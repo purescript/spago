@@ -1012,7 +1012,11 @@ mkRegistryEnv offline = do
   pure
     { getRegistry: Registry.getRegistryFns registryBox registryLock
     , logOptions
-    , offline
+    -- we only need OnlineRefreshRegistry when actually pulling the registry.
+    -- Once that's done we can reset to a more normal value
+    , offline: case offline of
+        OnlineRefreshRegistry -> Online
+        other -> other
     , purs
     , git
     , db

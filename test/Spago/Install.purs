@@ -138,6 +138,13 @@ spec = Spec.around withTempDir do
       writeConfigWithEither testCwd
       spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
 
+    Spec.it "forces registry refresh when using --refresh flag" \{ spago } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      -- The --refresh flag should force a registry refresh regardless of cache age
+      result <- spago [ "install", "--refresh" ]
+      shouldBeSuccess result
+      either _.stderr _.stderr result `shouldContain` "Refreshing the Registry Index..."
+
     Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let

@@ -46,7 +46,18 @@ import Spago.Path as Path
 import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)
 
-data OnlineStatus = Offline | Online | OnlineBypassCache
+-- | Controls network/caching behavior for registry operations.
+-- | - `Offline`: Never use network, fail if data not cached locally
+-- | - `Online`: Normal mode with 15-minute cache for registry data
+-- | - `OnlineRefreshRegistry`: Force refresh of registry repos (bypasses 15-min staleness
+-- |   check), but AVar cache still works normally. Used for `--refresh` flag.
+-- | - `OnlineBypassCache`: Bypass ALL caches (process AVar + DB). See usage
+-- |   in `Spago.Command.Registry.transfer` for details on when this is appropriate.
+data OnlineStatus
+  = Offline
+  | Online
+  | OnlineRefreshRegistry
+  | OnlineBypassCache
 
 derive instance Eq OnlineStatus
 
