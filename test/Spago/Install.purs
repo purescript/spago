@@ -220,7 +220,7 @@ spec = Spec.around withTempDir do
             }
         )
       spago [ "install", "nonexistent-package" ] >>= shouldBeSuccess
-      let slashyPath = testCwd </> Paths.localCachePackagesPath </> "nonexistent-package" </> "spago-test%2fbranch-with-slash"
+      let slashyPath = testCwd </> Paths.localCachePackagesPath </> "nonexistent-package" </> "spago-test%sbranch-with-slash"
       unlessM (FS.exists slashyPath) do
         Assertions.fail $ "Expected path to exist: " <> Path.quote slashyPath
       kids <- FS.ls slashyPath
