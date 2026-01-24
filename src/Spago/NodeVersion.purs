@@ -26,7 +26,7 @@ instance Show NodeVersionCheck where
 checkNodeVersion :: { major :: Int, minor :: Int } -> String -> NodeVersionCheck
 checkNodeVersion minimum version =
   case traverse Int.fromString (Array.take 2 parts) of
-    Just [major, minor]
+    Just [ major, minor ]
       | major > minimum.major -> NodeVersionOk
       | major == minimum.major && minor >= minimum.minor -> NodeVersionOk
       | otherwise -> NodeVersionTooOld version
