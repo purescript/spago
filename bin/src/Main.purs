@@ -14,7 +14,9 @@ import Data.Maybe as Maybe
 import Data.Set as Set
 import Effect.Aff as Aff
 import Effect.Aff.AVar as AVar
+import Effect.Console as Console
 import Effect.Now as Now
+import Node.Process as Process
 import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
 import Options.Applicative as O
 import Options.Applicative.Types (Backtracking(..))
@@ -51,6 +53,8 @@ import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
+import Spago.NodeVersion (NodeVersionCheck(..))
+import Spago.NodeVersion as NodeVersion
 import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs as Purs
@@ -531,6 +535,7 @@ parseArgs = do
 
 main :: Effect Unit
 main = do
+  ensureMinimumNodeVersion
   startingTime <- Now.now
   parseArgs >>=
     \c -> Aff.launchAff_ case c of
@@ -1049,3 +1054,14 @@ mkDocsEnv args dependencies = do
     }
 
 foreign import supportsColor :: Effect Boolean
+
+-- | Ensures Node.js version is >= 22.5.0 (required for node:sqlite)
+ensureMinimumNodeVersion :: Effect Unit
+ensureMinimumNodeVersion =
+  case NodeVersion.checkNodeVersion { major: 22, minor: 5 } Process.version of
+    NodeVersionOk -> pure unit
+    NodeVersionTooOld v -> do
+      Console.error $ "Error: spago requires Node.js v22.5.0 or later (found " <> v <> ")"
+      Process.exit' 1
+    NodeVersionUnparseable v ->
+      Console.warn $ "Warning: spago could not parse the Node.js version: " <> v

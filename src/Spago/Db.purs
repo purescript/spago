@@ -17,6 +17,7 @@ module Spago.Db
   , selectLatestPackageSetByCompiler
   , selectPackageSets
   , updateLastPull
+  , withTransaction
   ) where
 
 import Spago.Prelude
@@ -59,6 +60,9 @@ insertPackageSet db = Uncurried.runEffectFn2 insertPackageSetImpl db <<< package
 
 insertPackageSetEntry :: Db -> PackageSetEntry -> Effect Unit
 insertPackageSetEntry db = Uncurried.runEffectFn2 insertPackageSetEntryImpl db <<< packageSetEntryToJs
+
+withTransaction :: Db -> Effect Unit -> Effect Unit
+withTransaction db action = Uncurried.runEffectFn2 withTransactionImpl db action
 
 selectPackageSets :: Db -> Effect (Array PackageSet)
 selectPackageSets db = do
@@ -237,6 +241,8 @@ foreign import connectImpl :: EffectFn2 GlobalPath (EffectFn1 String Unit) Db
 foreign import insertPackageSetImpl :: EffectFn2 Db PackageSetJs Unit
 
 foreign import insertPackageSetEntryImpl :: EffectFn2 Db PackageSetEntryJs Unit
+
+foreign import withTransactionImpl :: EffectFn2 Db (Effect Unit) Unit
 
 foreign import selectLatestPackageSetByCompilerImpl :: EffectFn2 Db String (Nullable PackageSetJs)
 

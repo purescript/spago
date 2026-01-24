@@ -214,9 +214,10 @@ getRegistryFns registryBox registryLock = do
         -- First insert the package set
         logDebug $ "Inserting package set in DB: " <> Version.print setVersion
         liftEffect $ Db.insertPackageSet db { compiler: set.compiler, date: set.published, version: set.version }
-        -- Then we insert every entry separately
-        for_ (Map.toUnfoldable set.packages :: Array _) \(Tuple name version) -> do
-          liftEffect $ Db.insertPackageSetEntry db { packageName: name, packageVersion: version, packageSetVersion: set.version }
+        -- Then we insert every entry in a transaction (avoids "database is locked" on Windows)
+        liftEffect $ Db.withTransaction db do
+          for_ (Map.toUnfoldable set.packages :: Array _) \(Tuple name version) -> do
+            Db.insertPackageSetEntry db { packageName: name, packageVersion: version, packageSetVersion: set.version }
 
   -- | List all the package sets versions available in the Registry repo
   getAvailablePackageSets :: ∀ a. Spago (LogEnv a) (Array Version)
