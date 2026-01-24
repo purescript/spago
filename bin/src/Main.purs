@@ -457,6 +457,7 @@ registryPackageSetsArgsParser =
   Optparse.fromRecord
     { json: Flags.json
     , latest: Flags.latest
+    , set: Flags.maybePackageSetVersion
     }
 
 registryTransferArgsParser :: Parser RegistryTransferArgs

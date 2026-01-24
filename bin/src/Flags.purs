@@ -294,6 +294,14 @@ maybeSetVersion =
           <> O.help "Optional package set version to be used instead of the latest one"
       )
 
+maybePackageSetVersion :: Parser (Maybe String)
+maybePackageSetVersion =
+  OT.optional $
+    O.strArgument
+      ( O.metavar "SET"
+          <> O.help "Package set version to query"
+      )
+
 maybePackageName :: Parser (Maybe String)
 maybePackageName =
   OT.optional $
