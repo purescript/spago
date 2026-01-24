@@ -229,7 +229,7 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
         -- get their commit hashes. If a package is selected, depsToFetch only includes
         -- that package's deps, but the lockfile needs all packages.
         let allDeps = toAllDependencies allTransitiveDeps
-        when (Map.size allDeps /= Map.size depsToFetch) do
+        when (Map.keys allDeps /= Map.keys depsToFetch) do
           fetchPackagesToLocalCache allDeps
         writeNewLockfile reason dependencies
 
