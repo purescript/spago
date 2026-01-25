@@ -224,7 +224,14 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
     -- (we return them from inside there because we need to update the commit hashes)
     case workspace.packageSet.lockfile of
       Right _lockfile -> pure dependencies
-      Left reason -> writeNewLockfile reason dependencies
+      Left reason -> do
+        -- When generating a lockfile, we need ALL git packages to be fetched so we can
+        -- get their commit hashes. If a package is selected, depsToFetch only includes
+        -- that package's deps, but the lockfile needs all packages.
+        let allDeps = toAllDependencies allTransitiveDeps
+        when (Map.keys allDeps /= Map.keys depsToFetch) do
+          fetchPackagesToLocalCache allDeps
+        writeNewLockfile reason dependencies
 
 fetchPackagesToLocalCache :: ∀ a. Map PackageName Package -> Spago (FetchEnv a) Unit
 fetchPackagesToLocalCache packages = do
@@ -530,16 +537,24 @@ getPackageDependencies packageName package = case package of
     maybeManifest <- Registry.getManifestFromIndex packageName v
     pure $ maybeManifest <#> \(Manifest m) -> { core: m.dependencies, test: Map.empty }
   GitPackage p -> do
-    -- Note: we get the package in local cache nonetheless,
-    -- so we have guarantees about being able to fetch it
-    { rootPath } <- ask
-    let packageLocation = Config.getLocalPackageLocation rootPath packageName package
-    unlessM (FS.exists packageLocation) do
-      getGitPackageInLocalCache packageName p
     case p.dependencies of
-      Just (Dependencies dependencies) ->
+      -- if dependencies are declared, we can use them directly without cloning.
+      -- the package will be fetched later in fetchPackagesToLocalCache.
+      Just (Dependencies dependencies) -> do
+        -- when offline, verify the package is cached before proceeding
+        { offline, rootPath } <- ask
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName (GitPackage p)
+        when (offline == Offline) do
+          unlessM (FS.exists packageLocation) do
+            die $ "Package '" <> PackageName.print packageName <> "' is not in the local cache, and Spago is running in offline mode - can't make progress."
         pure $ Just { core: map (fromMaybe Config.widestRange) dependencies, test: Map.empty }
+      -- if the dependencies are not declared, then we need to clone the repo
+      -- to look at the package manifest inside
       Nothing -> do
+        { rootPath } <- ask
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName package
+        unlessM (FS.exists packageLocation) do
+          getGitPackageInLocalCache packageName p
         readLocalDependencies $ Path.toGlobal $ maybe packageLocation (packageLocation </> _) p.subdir
   LocalPackage p -> do
     readLocalDependencies $ Path.global p.path

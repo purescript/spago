@@ -178,7 +178,7 @@ mkTemp' maybeSuffix = liftAff do
     sha <- Sha256.hashString $ show now <> fromMaybe "" maybeSuffix
     shaToHex sha
   -- Return the dir, but don't make it - that's the responsibility of the client
-  let tempDirPath = Paths.paths.temp </> String.drop 50 random
+  let tempDirPath = Paths.paths.temp </> String.drop 56 random
   pure tempDirPath
 
 mkTemp :: forall m. MonadAff m => m Path.GlobalPath

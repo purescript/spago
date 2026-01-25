@@ -1,0 +1,17 @@
+package:
+  name: test-declared-deps
+  dependencies:
+    - either
+
+workspace:
+  packageSet:
+    registry: 0.0.1
+  extraPackages:
+    either:
+      git: https://github.com/purescript/purescript-either.git
+      ref: af655a04ed2fd694b6688af39ee20d7907ad0763
+      dependencies:
+        - control
+        - invariant
+        - maybe
+        - prelude

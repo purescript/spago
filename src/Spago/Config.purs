@@ -634,18 +634,41 @@ getLocalPackageLocation root name = case _ of
 -- inputs must map to two different outputs _and_ those outputs must differ by
 -- more than just casing.
 --
--- The characters which are most commonly used in version and branch names are
--- those which we allow through as they are (without escaping).
+-- The escape scheme uses:
+-- - `_` followed by lowercase for uppercase letters (A -> _a)
+-- - `_-` for underscore itself
+-- - `%` followed by mnemonic letter for special chars (/ -> %s, \ -> %b, : -> %c)
+-- - `%XX` hex fallback for other chars
 fileSystemCharEscape :: String -> String
 fileSystemCharEscape = String.toCodePointArray >>> map escapeCodePoint >>> Array.fold
   where
-  commonlyUsedChars = map String.codePointFromChar [ '.', ',', '-', '_', '+' ]
-  ignoreEscape = Unicode.isLower || Unicode.isDecDigit || flip Array.elem commonlyUsedChars
+  -- Pass through: lowercase, digits, and safe punctuation (but NOT underscore)
+  safeChars = map String.codePointFromChar [ '.', ',', '-', '+' ]
+  isSafe = Unicode.isLower || Unicode.isDecDigit || flip Array.elem safeChars
 
   escapeCodePoint :: CodePoint -> String
   escapeCodePoint cp
-    | ignoreEscape cp = String.singleton cp
-    | otherwise = append "%" $ Int.toStringAs Int.hexadecimal $ Enum.fromEnum cp
+    | isSafe cp = String.singleton cp
+    | cp == String.codePointFromChar '_' = "_-"
+    | Unicode.isUpper cp = "_" <> String.singleton (Unicode.toLowerSimple cp)
+    | otherwise = escapeSpecial cp
+
+  escapeSpecial :: CodePoint -> String
+  escapeSpecial cp = case String.singleton cp of
+    "/" -> "%s"
+    "\\" -> "%b"
+    ":" -> "%c"
+    "@" -> "%a"
+    "~" -> "%t"
+    "*" -> "%r"
+    "?" -> "%q"
+    "\"" -> "%d"
+    "<" -> "%l"
+    ">" -> "%g"
+    "|" -> "%p"
+    " " -> "%w"
+    "%" -> "%%"
+    _ -> "%" <> Int.toStringAs Int.hexadecimal (Enum.fromEnum cp)
 
 data WithTestGlobs
   = WithTestGlobs
