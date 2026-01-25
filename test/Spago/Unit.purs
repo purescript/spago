@@ -5,6 +5,7 @@ import Prelude
 import Test.Spago.Unit.CheckInjectivity as CheckInjectivity
 import Test.Spago.Unit.FindFlags as FindFlags
 import Test.Spago.Unit.Git as Git
+import Test.Spago.Unit.Init as Init
 import Test.Spago.Unit.NodeVersion as NodeVersion
 import Test.Spago.Unit.Path as Path
 import Test.Spago.Unit.Printer as Printer
@@ -15,6 +16,7 @@ spec :: Spec Unit
 spec = Spec.describe "unit" do
   FindFlags.spec
   CheckInjectivity.spec
+  Init.spec
   Printer.spec
   Git.spec
   Path.spec

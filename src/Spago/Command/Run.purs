@@ -12,6 +12,8 @@ import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
 import Data.Map as Map
+import Data.String as String
+import JSURI (encodeURIComponent)
 import Node.FS.Perms as Perms
 import Registry.Version as Version
 import Spago.Cmd as Cmd
@@ -83,10 +85,17 @@ run = do
 
         nodeArgs = [ Path.toRaw runJsPath ] <> opts.execArgs
 
+        -- Encode each path segment for use in file:// URL
+        -- Splits on /, encodes each segment, rejoins with /
+        encodeFileUrlPath str =
+          String.split (String.Pattern "/") str
+            # map (\seg -> fromMaybe seg (encodeURIComponent seg))
+            # String.joinWith "/"
+
         nodeContents =
           Array.fold
             [ "import { main } from 'file://"
-            , Path.toRaw (withForwardSlashes absOutput)
+            , encodeFileUrlPath $ Path.toRaw (withForwardSlashes absOutput)
             , "/"
             , opts.moduleName
             , "/"
