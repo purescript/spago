@@ -3,4 +3,4 @@ Reading Spago workspace configuration...
 ✓ Selecting package to build: eee
 
 
-✘ You are offline and the repo 'https://github.com/purescript/purescript-either.git' is not available locally, can't make progress.
+✘ Package 'either' is not in the local cache, and Spago is running in offline mode - can't make progress.
