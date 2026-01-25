@@ -324,7 +324,11 @@ spagoRangeCodec = CJ.prismaticCodec "SpagoRange" rangeParse printSpagoRange CJ.s
   where
   rangeParse str =
     if str == "*" then Just widestRange
-    else hush $ Range.parse str
+    -- First try parsing as a range (e.g. ">=1.0.0 <2.0.0")
+    else case hush $ Range.parse str of
+      Just range -> Just range
+      -- Then try parsing as an exact version (e.g. "1.0.0" -> ">=1.0.0 <1.0.1")
+      Nothing -> Range.exact <$> hush (Version.parse str)
 
 printSpagoRange :: Range -> String
 printSpagoRange range =
