@@ -217,7 +217,10 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
           pure $ Map.union supportDeps $ Map.union deps.test deps.core
 
     -- then for every package we have we try to download it, and copy it in the local cache
-    logInfo "Downloading dependencies..."
+    { offline } <- ask
+    logInfo case offline of
+      Offline -> "Checking dependencies..."
+      _ -> "Downloading dependencies..."
     fetchPackagesToLocalCache depsToFetch
 
     -- We return the dependencies, going through the lockfile write if we need to
