@@ -1,6 +1,6 @@
 Invalid option `--bogus'
 
-Usage: index.dev.js build [--migrate] [--monochrome|--no-color] [--offline] [-q|--quiet] [-v|--verbose] [--backend-args ARGS] [--ensure-ranges] [--json-errors] [--output DIR] [--pedantic-packages] [--pure] [--purs-args ARGS] [-p|--package PACKAGE] ([--verbose-stats] | [--censor-stats]) [--strict]
+Usage: index.dev.js build [--migrate] [--monochrome|--no-color] [--offline] [--refresh] [-q|--quiet] [-v|--verbose] [--backend-args ARGS] [--ensure-ranges] [--json-errors] [--output DIR] [--pedantic-packages] [--pure] [--purs-args ARGS] [-p|--package PACKAGE] ([--verbose-stats] | [--censor-stats]) [--strict]
   Compile the project
 
 Available options:
@@ -9,6 +9,7 @@ Available options:
   --offline                Do not attempt to use the network. Warning: this will
                            fail if you don't have the necessary dependencies
                            already cached
+  --refresh                Force refresh of the Registry, bypassing the cache
   -q,--quiet               Suppress all spago logging
   -v,--verbose             Enable additional debug logging, e.g. printing `purs`
                            commands
