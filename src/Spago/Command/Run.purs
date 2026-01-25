@@ -1,6 +1,7 @@
 module Spago.Command.Run
   ( getNode
   , run
+  , encodeFileUrlPath
   , RunEnv
   , Node
   , RunOptions
@@ -13,6 +14,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty as NEA
 import Data.Map as Map
 import Data.String as String
+import Data.String.CodeUnits as SCU
 import JSURI (encodeURIComponent)
 import Node.FS.Perms as Perms
 import Registry.Version as Version
@@ -47,6 +49,26 @@ type RunOptions =
   }
 
 type Node = { cmd :: GlobalPath, version :: Version }
+
+-- | Encode a file path for use in a file:// URL.
+-- | Encodes special characters (spaces, apostrophes, etc.) but preserves
+-- | Windows drive letters (e.g., "C:") since encoding the colon breaks URLs.
+encodeFileUrlPath :: String -> String
+encodeFileUrlPath str =
+  String.split (String.Pattern "/") str
+    # map encodeSegment
+    # String.joinWith "/"
+  where
+  encodeSegment seg
+    | isWindowsDrive seg = seg
+    | otherwise = fromMaybe seg (encodeURIComponent seg)
+
+  -- Windows drive letter: single ASCII letter followed by colon (e.g., "C:", "D:")
+  isWindowsDrive seg = case SCU.toCharArray seg of
+    [ letter, ':' ] -> isAsciiLetter letter
+    _ -> false
+
+  isAsciiLetter c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 
 nodeVersion :: forall a. Spago (LogEnv a) Version
 nodeVersion =
@@ -84,13 +106,6 @@ run = do
         packageJsonContents = "{\"type\":\"module\" }"
 
         nodeArgs = [ Path.toRaw runJsPath ] <> opts.execArgs
-
-        -- Encode each path segment for use in file:// URL
-        -- Splits on /, encodes each segment, rejoins with /
-        encodeFileUrlPath str =
-          String.split (String.Pattern "/") str
-            # map (\seg -> fromMaybe seg (encodeURIComponent seg))
-            # String.joinWith "/"
 
         nodeContents =
           Array.fold

@@ -9,6 +9,7 @@ import Test.Spago.Unit.Init as Init
 import Test.Spago.Unit.NodeVersion as NodeVersion
 import Test.Spago.Unit.Path as Path
 import Test.Spago.Unit.Printer as Printer
+import Test.Spago.Unit.Run as Run
 import Test.Spec (Spec)
 import Test.Spec as Spec
 
@@ -21,3 +22,4 @@ spec = Spec.describe "unit" do
   Git.spec
   Path.spec
   NodeVersion.spec
+  Run.spec
