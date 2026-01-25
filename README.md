@@ -1438,6 +1438,9 @@ package:
     #    The registry will then check if the package version is included
     #    in this range.
     - package-with-range: ">=1.1.1 <2.0.0"
+    # 4) specify an exact version
+    #    Shorthand for ">=1.2.3 <1.2.4", pinning to a specific patch version.
+    - package-with-exact-version: "1.2.3"
 
   # Optional description for the package
   description: "a useful package"
