@@ -138,12 +138,18 @@ spec = Spec.around withTempDir do
       writeConfigWithEither testCwd
       spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
 
-    Spec.it "forces registry refresh when using --refresh flag" \{ spago } -> do
+    Spec.it "refresh flag forces registry refresh and bypasses DB metadata cache" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       -- The --refresh flag should force a registry refresh regardless of cache age
-      result <- spago [ "install", "--refresh" ]
-      shouldBeSuccess result
-      either _.stderr _.stderr result `shouldContain` "Refreshing the Registry Index..."
+      result1 <- spago [ "install", "--refresh" ]
+      shouldBeSuccess result1
+      either _.stderr _.stderr result1 `shouldContain` "Refreshing the Registry Index..."
+      -- Remove lockfile to force dependency resolution on next install
+      FS.unlink (testCwd </> "spago.lock")
+      -- With --refresh, should also bypass DB metadata cache and read from files
+      result2 <- spago [ "install", "-v", "--refresh", "effect" ]
+      shouldBeSuccess result2
+      either _.stderr _.stderr result2 `shouldContain` "Bypassing cache, reading metadata from file"
 
     Spec.it "skips cloning during resolution when git package has declared deps" \{ spago, testCwd, fixture } -> do
       FS.copyFile { src: fixture "git-declared-deps/with-declared-deps.yaml", dst: testCwd </> "spago.yaml" }

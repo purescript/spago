@@ -264,7 +264,7 @@ getMetadataImpl db onlineStatus name =
 -- Parallelised version of `getMetadataImpl`
 getMetadataForPackagesImpl :: Db -> OnlineStatus -> Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
 getMetadataForPackagesImpl db onlineStatus names = do
-  (map Map.fromFoldable <<< sequence) <$> case onlineStatus == OnlineBypassCache of
+  (map Map.fromFoldable <<< sequence) <$> case onlineStatus == OnlineBypassCache || onlineStatus == OnlineRefreshRegistry of
     true -> do
       logDebug "Bypassing cache, reading metadata from file"
       parTraverseSpago metadataFromFile names
