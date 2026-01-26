@@ -1,6 +1,6 @@
 Invalid option `--subpackage'
 
-Usage: index.dev.js init [--migrate] [--monochrome|--no-color] [--offline] [-q|--quiet] [-v|--verbose] ([--subpackage ARG] | [--name ARG]) [--package-set ARG] [--use-solver]
+Usage: index.dev.js init [--migrate] [--monochrome|--no-color] [--offline] [--refresh] [-q|--quiet] [-v|--verbose] ([--subpackage ARG] | [--name ARG]) [--package-set ARG] [--use-solver]
   Initialise a new project
 
 Available options:
@@ -9,6 +9,7 @@ Available options:
   --offline                Do not attempt to use the network. Warning: this will
                            fail if you don't have the necessary dependencies
                            already cached
+  --refresh                Force refresh of the Registry, bypassing the cache
   -q,--quiet               Suppress all spago logging
   -v,--verbose             Enable additional debug logging, e.g. printing `purs`
                            commands
