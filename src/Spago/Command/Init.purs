@@ -24,6 +24,7 @@ import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
+import Spago.Log as Log
 import Spago.Path as Path
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
@@ -108,18 +109,30 @@ run opts = do
   getPackageName :: Spago (InitEnv a) PackageName
   getPackageName = do
     { rootPath } <- ask
+    -- When the user explicitly provides a name, validate it directly and show the actual error.
+    -- When deriving from directory name, use folderToPackageName which sanitizes and gives a generic error.
     let
-      candidateName = case opts.mode of
-        InitWorkspace { packageName: Nothing } -> String.take 150 $ Path.basename rootPath
-        InitWorkspace { packageName: Just n } -> n
-        InitSubpackage { packageName: n } -> n
-    pname <- case folderToPackageName candidateName of
-      Nothing -> die
-        [ "Could not derive a valid package name from directory " <> Path.quote rootPath <> "."
-        , "Please use --name to specify a package name."
-        ]
-      Just p -> pure p
-    logDebug [ Path.quote rootPath, "\"" <> candidateName <> "\" -> \"" <> PackageName.print pname <> "\"" ]
+      explicitName = case opts.mode of
+        InitWorkspace { packageName: Just n } -> Just n
+        InitSubpackage { packageName: n } -> Just n
+        InitWorkspace { packageName: Nothing } -> Nothing
+    pname <- case explicitName of
+      Just n -> case PackageName.parse (PackageName.stripPureScriptPrefix n) of
+        Left err -> die
+          [ toDoc "Could not figure out a name for the new package. Error:"
+          , Log.break
+          , Log.indent2 $ toDoc err
+          ]
+        Right p -> pure p
+      Nothing -> do
+        let candidateName = String.take 150 $ Path.basename rootPath
+        case folderToPackageName candidateName of
+          Nothing -> die
+            [ "Could not derive a valid package name from directory " <> Path.quote rootPath <> "."
+            , "Please use --name to specify a package name."
+            ]
+          Just p -> pure p
+    logDebug [ Path.quote rootPath, PackageName.print pname ]
     logDebug [ "Got packageName and setVersion:", PackageName.print pname, unsafeStringify opts.setVersion ]
     pure pname
 
