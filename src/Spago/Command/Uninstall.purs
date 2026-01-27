@@ -83,11 +83,7 @@ run args = do
 
   where
   writeNewLockfile reason = do
-    { workspace } <- ask
-    dependencies <- traverse Fetch.getTransitiveDeps
-      $ Map.fromFoldable
-      $ map (\p -> Tuple p.package.name p)
-      $ Config.getWorkspacePackages workspace.packageSet
+    dependencies <- Fetch.getWorkspaceTransitiveDeps
     Fetch.writeNewLockfile reason dependencies
 
   toContext :: LocalPath -> Maybe (YamlDoc Core.Config) -> PackageConfig -> Spago _ (_ _)

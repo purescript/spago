@@ -9,22 +9,10 @@
             "effect",
             "maybe",
             "prelude"
-          ],
-          "build_plan": [
-            "console",
-            "control",
-            "effect",
-            "invariant",
-            "maybe",
-            "newtype",
-            "prelude",
-            "safe-coerce",
-            "unsafe-coerce"
           ]
         },
         "test": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         }
       }
     },

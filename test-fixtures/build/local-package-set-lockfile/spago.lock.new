@@ -8,16 +8,10 @@
             "console",
             "effect",
             "prelude"
-          ],
-          "build_plan": [
-            "console",
-            "effect",
-            "prelude"
           ]
         },
         "test": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         }
       }
     },

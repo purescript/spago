@@ -4,7 +4,6 @@ import Test.Prelude
 
 import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Map as Map
-import Data.Set as Set
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
@@ -44,26 +43,18 @@ validLockfile =
                       [ packageTuple "effect" (Just (unsafeFromRight (Range.parse ">=1.0.0 <5.0.0")))
                       , packageTuple "my-library" Nothing
                       ]
-                  , build_plan: Set.fromFoldable
-                      [ mkPackageName "my-library"
-                      , mkPackageName "effect"
-                      , mkPackageName "prelude"
-                      ]
                   }
               , test:
                   { dependencies: Dependencies Map.empty
-                  , build_plan: Set.empty
                   }
               , path: "my-app"
               }
           , packageTuple "my-library"
               { core:
                   { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "prelude" Nothing ]
-                  , build_plan: Set.fromFoldable [ mkPackageName "prelude" ]
                   }
               , test:
                   { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just Config.widestRange) ]
-                  , build_plan: Set.fromFoldable [ mkPackageName "console" ]
                   }
               , path: "my-library"
               }
@@ -133,11 +124,6 @@ validLockfileString =
       "my-app": {
         "path": "my-app",
         "core": {
-          "build_plan": [
-            "effect",
-            "my-library",
-            "prelude"
-          ],
           "dependencies": [
             {
               "effect": ">=1.0.0 <5.0.0"
@@ -146,16 +132,12 @@ validLockfileString =
           ]
         },
         "test": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         }
       },
       "my-library": {
         "path": "my-library",
         "core": {
-          "build_plan": [
-            "prelude"
-          ],
           "dependencies": [
             "prelude"
           ]
@@ -165,9 +147,6 @@ validLockfileString =
             {
               "console": "*"
             }
-          ],
-          "build_plan": [
-            "console"
           ]
         }
       }
