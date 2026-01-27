@@ -81,7 +81,7 @@ spec = Spec.around withTempDir do
       spago [ "run" ] >>= shouldBeSuccessOutput (fixture "run-output.txt")
 
     Spec.it "init fails gracefully when directory name has no valid characters" \{ spago, fixture, testCwd } -> do
-      let dir = testCwd </> "..."
+      let dir = testCwd </> "###"
       FS.mkdirp dir
       Paths.chdir dir
       spago [ "init" ] >>= checkOutputs'
