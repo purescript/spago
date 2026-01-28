@@ -85,6 +85,9 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "fetch" ] >>= shouldBeSuccess
+      -- Refresh the registry cache timestamp because Windows CI is slow enough
+      -- that it can go stale (>15min) between earlier tests and this one
+      spago [ "registry", "package-sets" ] >>= shouldBeSuccess
       spago [ "publish", "-p", "root", "--offline" ] >>= shouldBeFailureErr (fixture "publish/1307-publish-dependencies/expected-stderr.txt")
 
     Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture, testCwd } -> do
