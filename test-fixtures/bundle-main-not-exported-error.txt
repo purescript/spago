@@ -1,0 +1,15 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: test-package
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.
+
+
+✘ Cannot bundle app: module Main does not export `main`.
+Add `main` to the module's export list, remove the explicit export list, or use --bundle-type=module.

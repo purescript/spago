@@ -1,6 +1,6 @@
 # spago
 
-![NPM Version (with dist tag)](https://img.shields.io/npm/v/spago/next)
+[![NPM Version (with dist tag)](https://img.shields.io/npm/v/spago/next)](https://www.npmjs.com/package/spago/v/next)
 ![Latest release](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpurescript%2Fspago%2Frefs%2Fheads%2Fmaster%2Fspago.yaml&query=package.publish.version&prefix=v&label=release)
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![nix-flake](https://github.com/purescript/spago/actions/workflows/nix-flake.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/nix-flake.yml)
@@ -506,6 +506,7 @@ In this case we override the package with its local copy, which should have a `s
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     aff:
@@ -538,6 +539,7 @@ In this case, we can just change the override to point to some commit of our for
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     aff:
@@ -560,7 +562,8 @@ There are a few possible scenarios - the most straightforward is when a package 
 
 ```
 workspace:
-  registry: 41.2.0
+  packageSet:
+    registry: 41.2.0
   extraPackages:
     some-package-from-the-registry: 4.0.0
 ```
@@ -569,6 +572,7 @@ Another possibility is that the package is not in the registry (maybe it's your 
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     facebook:
@@ -584,6 +588,7 @@ The last possible case is the one picking up a local folder as a package (note: 
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     facebook:
@@ -1137,6 +1142,16 @@ The transfer procedure is automated by Spago commands, and goes as follows:
 The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations,
 plus a lot of diagnostic info, so you might want to use it to troubleshoot weird behaviours and/or crashes.
 
+### Force a registry refresh
+
+Spago caches the Registry Index for 15 minutes. If you need a package that was just published, you can force a refresh:
+
+```console
+$ spago install --refresh some-new-package
+```
+
+The `--refresh` flag works with any command that accesses the Registry (`install`, `build`, `fetch`, etc.).
+
 ### Install autocompletions for `bash`
 
 You can just add this to your `.bashrc`:
@@ -1389,12 +1404,12 @@ workspace:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
 
     # Specify whether to censor warnings coming from the compiler
     # for files in workspace project source
@@ -1433,6 +1448,9 @@ package:
     #    The registry will then check if the package version is included
     #    in this range.
     - package-with-range: ">=1.1.1 <2.0.0"
+    # 4) specify an exact version
+    #    Shorthand for ">=1.2.3 <1.2.4", pinning to a specific patch version.
+    - package-with-exact-version: "1.2.3"
 
   # Optional description for the package
   description: "a useful package"
@@ -1455,12 +1473,12 @@ package:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
     # Convert compiler warnings for files in this package's src code
     # into errors that can fail the build.
     # Optional and defaults to false
@@ -1523,12 +1541,12 @@ package:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
       #      censor warnings if the warning's message
-      #      starts with the given text
+      #      starts with the given text.
       - CodeName
       # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
+          Data.Map's `Semigroup` instance
     # Convert compiler warnings for files from this package's test code
     # into errors that can fail the build.
     # Optional and defaults to false
@@ -1630,9 +1648,9 @@ packages, you should run the appropriate package-manager for that (e.g. npm).
 
 Spago dropped support for the --watch flag in `spago build` and `spago test`.
 
-VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
+VSCode users are recommended to use the [Purescript IDE][ide-purescript] extension for seamless experiences with automatic rebuilds.
 
-Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin](purescript-language-server).
+Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin][purescript-language-server].
 
 If you want a very simple drop in replacement for `spago test --watch`, you can use a general purpose tool such as [watchexec]:
 
@@ -1669,6 +1687,6 @@ and similarly for the `test` folder, using that for the test sources.
 [purescript-overlay]: https://github.com/thomashoneyman/purescript-overlay
 [sample-package-set]: https://github.com/purescript/registry/blob/main/package-sets/41.2.0.json
 [watchexec]: https://github.com/watchexec/watchexec#quick-start
-[purescript-langugage-server]: https://github.com/nwolverson/purescript-language-server
+[purescript-language-server]: https://github.com/nwolverson/purescript-language-server
 [ide-purescript]: https://marketplace.visualstudio.com/items?itemName=nwolverson.ide-purescript
 [registry-dev-auth]: https://github.com/purescript/registry-dev/blob/master/SPEC.md#52-authentication

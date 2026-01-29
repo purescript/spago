@@ -14,7 +14,9 @@ import Data.Maybe as Maybe
 import Data.Set as Set
 import Effect.Aff as Aff
 import Effect.Aff.AVar as AVar
+import Effect.Console as Console
 import Effect.Now as Now
+import Node.Process as Process
 import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
 import Options.Applicative as O
 import Options.Applicative.Types (Backtracking(..))
@@ -51,6 +53,8 @@ import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
+import Spago.NodeVersion (NodeVersionCheck(..))
+import Spago.NodeVersion as NodeVersion
 import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs as Purs
@@ -531,6 +535,7 @@ parseArgs = do
 
 main :: Effect Unit
 main = do
+  ensureMinimumNodeVersion
   startingTime <- Now.now
   parseArgs >>=
     \c -> Aff.launchAff_ case c of
@@ -641,7 +646,7 @@ main = do
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             built <- runSpago buildEnv (Build.run options)
             when built do
-              bundleEnv <- runSpago env (mkBundleEnv args)
+              bundleEnv <- runSpago env (mkBundleEnv args buildEnv)
               runSpago bundleEnv Bundle.run
           Run args@{ selectedPackage, ensureRanges, pure } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges, pure, testDeps: false, isRepl: false, migrateConfig, offline }
@@ -719,8 +724,8 @@ main = do
       Left err -> die [ "Could not parse provided set version. Error:", show err ]
       Right v -> pure v
 
-mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
-mkBundleEnv bundleArgs = do
+mkBundleEnv :: forall a b. BundleArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
+mkBundleEnv bundleArgs { dependencies, purs } = do
   { workspace, logOptions, rootPath } <- ask
   logDebug $ "Bundle args: " <> show bundleArgs
 
@@ -777,7 +782,7 @@ mkBundleEnv bundleArgs = do
           }
       }
   esbuild <- Esbuild.getEsbuild
-  let bundleEnv = { esbuild, logOptions, rootPath, workspace: newWorkspace, selected, bundleOptions }
+  let bundleEnv = { esbuild, logOptions, rootPath, workspace: newWorkspace, selected, bundleOptions, purs, dependencies }
   pure bundleEnv
 
 mkRunEnv :: forall a b. RunArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
@@ -1049,3 +1054,14 @@ mkDocsEnv args dependencies = do
     }
 
 foreign import supportsColor :: Effect Boolean
+
+-- | Ensures Node.js version is >= 22.5.0 (required for node:sqlite)
+ensureMinimumNodeVersion :: Effect Unit
+ensureMinimumNodeVersion =
+  case NodeVersion.checkNodeVersion { major: 22, minor: 5 } Process.version of
+    NodeVersionOk -> pure unit
+    NodeVersionTooOld v -> do
+      Console.error $ "Error: spago requires Node.js v22.5.0 or later (found " <> v <> ")"
+      Process.exit' 1
+    NodeVersionUnparseable v ->
+      Console.warn $ "Warning: spago could not parse the Node.js version: " <> v

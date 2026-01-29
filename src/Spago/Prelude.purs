@@ -46,7 +46,18 @@ import Spago.Path as Path
 import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)
 
-data OnlineStatus = Offline | Online | OnlineBypassCache
+-- | Controls network/caching behavior for registry operations.
+-- | - `Offline`: Never use network, fail if data not cached locally
+-- | - `Online`: Normal mode with 15-minute cache for registry data
+-- | - `OnlineRefreshRegistry`: Force refresh of registry repos (bypasses 15-min staleness
+-- |   check), but AVar cache still works normally. Used for `--refresh` flag.
+-- | - `OnlineBypassCache`: Bypass ALL caches (process AVar + DB). See usage
+-- |   in `Spago.Command.Registry.transfer` for details on when this is appropriate.
+data OnlineStatus
+  = Offline
+  | Online
+  | OnlineRefreshRegistry
+  | OnlineBypassCache
 
 derive instance Eq OnlineStatus
 
@@ -167,7 +178,7 @@ mkTemp' maybeSuffix = liftAff do
     sha <- Sha256.hashString $ show now <> fromMaybe "" maybeSuffix
     shaToHex sha
   -- Return the dir, but don't make it - that's the responsibility of the client
-  let tempDirPath = Paths.paths.temp </> String.drop 50 random
+  let tempDirPath = Paths.paths.temp </> String.drop 56 random
   pure tempDirPath
 
 mkTemp :: forall m. MonadAff m => m Path.GlobalPath

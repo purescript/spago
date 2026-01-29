@@ -176,10 +176,21 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
       doc <- justOrDieWith yamlDoc Config.configDocMissingErrorMessage
       liftAff $ Config.addPackagesToConfig configPath doc isTest actualPackagesToInstall
 
-    -- if the flag is selected, we kick off the process of adding ranges to the config
-    when ensureRanges do
+    -- For solver-based projects, always ensure ranges (they're required for the solver to work)
+    -- For package-set projects, only add ranges if explicitly requested
+    -- Note: we can only add ranges if we have a target package (selected or root)
+    -- If user explicitly passed --ensure-ranges, we should error if there's no target package
+    -- If it's implicitly enabled (solver build), we silently skip when there's no target
+    let
+      isSolverBuild = case currentWorkspace.packageSet.buildType of
+        RegistrySolverBuild _ -> true
+        PackageSetBuild _ _ -> false
+      hasTargetPackage = isJust currentWorkspace.selected || isJust currentWorkspace.rootPackage
+      shouldEnsureRanges = ensureRanges || (isSolverBuild && hasTargetPackage)
+
+    when shouldEnsureRanges do
       { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
-      logInfo $ "Adding ranges to core dependencies to the config in " <> Path.quote configPath
+      logInfo $ "Adding dependency ranges to the config in " <> Path.quote configPath
       packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
         "Impossible: package dependencies must be in dependencies map"
       let rangeMap = map getRangeFromPackage packageDeps.core
@@ -206,14 +217,24 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
           pure $ Map.union supportDeps $ Map.union deps.test deps.core
 
     -- then for every package we have we try to download it, and copy it in the local cache
-    logInfo "Downloading dependencies..."
+    { offline } <- ask
+    logInfo case offline of
+      Offline -> "Checking dependencies..."
+      _ -> "Downloading dependencies..."
     fetchPackagesToLocalCache depsToFetch
 
     -- We return the dependencies, going through the lockfile write if we need to
     -- (we return them from inside there because we need to update the commit hashes)
     case workspace.packageSet.lockfile of
       Right _lockfile -> pure dependencies
-      Left reason -> writeNewLockfile reason dependencies
+      Left reason -> do
+        -- When generating a lockfile, we need ALL git packages to be fetched so we can
+        -- get their commit hashes. If a package is selected, depsToFetch only includes
+        -- that package's deps, but the lockfile needs all packages.
+        let allDeps = toAllDependencies allTransitiveDeps
+        when (Map.keys allDeps /= Map.keys depsToFetch) do
+          fetchPackagesToLocalCache allDeps
+        writeNewLockfile reason dependencies
 
 fetchPackagesToLocalCache :: ∀ a. Map PackageName Package -> Spago (FetchEnv a) Unit
 fetchPackagesToLocalCache packages = do
@@ -508,19 +529,35 @@ getGitPackageInLocalCache name package = do
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
 getPackageDependencies packageName package = case package of
   RegistryVersion v -> do
+    -- Check if registry-index exists when offline
+    whenM (asks _.offline <#> eq Offline) do
+      unlessM (FS.exists Paths.registryIndexPath) do
+        die
+          [ "You are offline and the Registry Index is not cached locally."
+          , "Cannot look up dependencies for " <> PackageName.print packageName <> "@" <> Version.print v
+          , "Please connect to the internet and run 'spago install' first."
+          ]
     maybeManifest <- Registry.getManifestFromIndex packageName v
     pure $ maybeManifest <#> \(Manifest m) -> { core: m.dependencies, test: Map.empty }
   GitPackage p -> do
-    -- Note: we get the package in local cache nonetheless,
-    -- so we have guarantees about being able to fetch it
-    { rootPath } <- ask
-    let packageLocation = Config.getLocalPackageLocation rootPath packageName package
-    unlessM (FS.exists packageLocation) do
-      getGitPackageInLocalCache packageName p
     case p.dependencies of
-      Just (Dependencies dependencies) ->
+      -- if dependencies are declared, we can use them directly without cloning.
+      -- the package will be fetched later in fetchPackagesToLocalCache.
+      Just (Dependencies dependencies) -> do
+        -- when offline, verify the package is cached before proceeding
+        { offline, rootPath } <- ask
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName (GitPackage p)
+        when (offline == Offline) do
+          unlessM (FS.exists packageLocation) do
+            die $ "Package '" <> PackageName.print packageName <> "' is not in the local cache, and Spago is running in offline mode - can't make progress."
         pure $ Just { core: map (fromMaybe Config.widestRange) dependencies, test: Map.empty }
+      -- if the dependencies are not declared, then we need to clone the repo
+      -- to look at the package manifest inside
       Nothing -> do
+        { rootPath } <- ask
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName package
+        unlessM (FS.exists packageLocation) do
+          getGitPackageInLocalCache packageName p
         readLocalDependencies $ Path.toGlobal $ maybe packageLocation (packageLocation </> _) p.subdir
   LocalPackage p -> do
     readLocalDependencies $ Path.global p.path

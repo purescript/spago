@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.44",
+  "version": "0.93.45",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -17,6 +17,9 @@
   },
   "author": "Fabrizio Ferrai",
   "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "bin": {
     "spago": "bin/bundle.js"
   },
@@ -35,7 +38,6 @@
   },
   "dependencies": {
     "@nodelib/fs.walk": "^3.0.1",
-    "better-sqlite3": "^11.8.1",
     "env-paths": "^3.0.0",
     "fs-extra": "^11.3.0",
     "fuse.js": "^7.1.0",

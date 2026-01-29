@@ -1,6 +1,6 @@
 Invalid option `--bogus'
 
-Usage: index.dev.js registry search [--migrate] [--monochrome|--no-color] [--offline] [-q|--quiet] [-v|--verbose] [--json] PACKAGE
+Usage: index.dev.js registry search [--migrate] [--monochrome|--no-color] [--offline] [--refresh] [-q|--quiet] [-v|--verbose] [--json] PACKAGE
   Search for package names in the Registry
 
 Available options:
@@ -9,6 +9,7 @@ Available options:
   --offline                Do not attempt to use the network. Warning: this will
                            fail if you don't have the necessary dependencies
                            already cached
+  --refresh                Force refresh of the Registry, bypassing the cache
   -q,--quiet               Suppress all spago logging
   -v,--verbose             Enable additional debug logging, e.g. printing `purs`
                            commands
