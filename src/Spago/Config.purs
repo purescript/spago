@@ -7,10 +7,13 @@ module Spago.Config
   , Workspace
   , WorkspaceBuildOptions
   , WorkspacePackage
+  , addConstraintsToConfig
   , addOwner
   , addPackagesToConfig
   , addPublishLocationToConfig
   , addRangesToConfig
+  , addTestConstraintsToConfig
+  , addTestRangesToConfig
   , configDocMissingErrorMessage
   , fileSystemCharEscape
   , getLocalPackageLocation
@@ -779,11 +782,36 @@ addPackagesToConfig configPath doc isTest pkgs = do
 removePackagesFromConfig :: YamlDoc Core.Config -> Boolean -> NonEmptySet PackageName -> Effect Unit
 removePackagesFromConfig doc isTest pkgs = runEffectFn3 removePackagesFromConfigImpl doc isTest (flip NonEmptySet.member pkgs)
 
-addRangesToConfig :: YamlDoc Core.Config -> Map PackageName Range -> Effect Unit
-addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
-  <<< Foreign.fromFoldable
+-- | Convert a map of package ranges to the format expected by the FFI
+rangesToForeignObject :: Map PackageName Range -> Foreign.Object String
+rangesToForeignObject = Foreign.fromFoldable
   <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Core.printSpagoRange range))
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
+
+addRangesToConfig :: YamlDoc Core.Config -> Map PackageName Range -> Effect Unit
+addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc <<< rangesToForeignObject
+
+addTestRangesToConfig :: YamlDoc Core.Config -> Map PackageName Range -> Effect Unit
+addTestRangesToConfig doc = runEffectFn2 addTestRangesToConfigImpl doc <<< rangesToForeignObject
+
+-- | Convert a map of version constraints to the format expected by addRangesToConfig.
+-- | Nothing values (bare deps) are filtered out - they stay unchanged in the YAML.
+-- | Just values are printed to strings.
+constraintsToRangesObject :: Map PackageName (Maybe Core.VersionConstraint) -> Foreign.Object String
+constraintsToRangesObject = Foreign.fromFoldable
+  <<< Array.mapMaybe (\(Tuple name maybeConstraint) -> Tuple (PackageName.print name) <$> (printConstraint <$> maybeConstraint))
+  <<< (Map.toUnfoldable :: Map _ _ -> Array _)
+  where
+  printConstraint (Core.ExactVersion v) = Version.print v
+  printConstraint (Core.VersionRange r) = Core.printSpagoRange r
+
+-- | Update constraints in package.dependencies. Nothing values are left unchanged.
+addConstraintsToConfig :: YamlDoc Core.Config -> Map PackageName (Maybe Core.VersionConstraint) -> Effect Unit
+addConstraintsToConfig doc = runEffectFn2 addRangesToConfigImpl doc <<< constraintsToRangesObject
+
+-- | Update constraints in package.test.dependencies. Nothing values are left unchanged.
+addTestConstraintsToConfig :: YamlDoc Core.Config -> Map PackageName (Maybe Core.VersionConstraint) -> Effect Unit
+addTestConstraintsToConfig doc = runEffectFn2 addTestRangesToConfigImpl doc <<< constraintsToRangesObject
 
 configDocMissingErrorMessage :: String
 configDocMissingErrorMessage = Array.fold
@@ -806,6 +834,7 @@ foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Confi
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
 foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
+foreign import addTestRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
 foreign import addPublishLocationToConfigImpl :: EffectFn2 (YamlDoc Core.Config) JSON Unit
 foreign import addOwnerImpl :: EffectFn2 (YamlDoc Core.Config) OwnerJS Unit
 foreign import migrateV1ConfigImpl :: forall a. YamlDoc a -> Nullable (YamlDoc Core.Config)

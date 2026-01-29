@@ -120,7 +120,7 @@ publish _args = do
       $ map
           ( case _ of
               Tuple pkg Nothing -> Left pkg
-              Tuple pkg (Just range) -> Right (Tuple pkg range)
+              Tuple pkg (Just constraint) -> Right (Tuple pkg (Config.constraintToRange (Just constraint)))
           )
       $ (Map.toUnfoldable :: Map _ _ -> Array _)
       $ unwrap selected.package.dependencies

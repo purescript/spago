@@ -550,7 +550,7 @@ getPackageDependencies packageName package = case package of
         when (offline == Offline) do
           unlessM (FS.exists packageLocation) do
             die $ "Package '" <> PackageName.print packageName <> "' is not in the local cache, and Spago is running in offline mode - can't make progress."
-        pure $ Just { core: map (fromMaybe Config.widestRange) dependencies, test: Map.empty }
+        pure $ Just { core: map Config.constraintToRange dependencies, test: Map.empty }
       -- if the dependencies are not declared, then we need to clone the repo
       -- to look at the package manifest inside
       Nothing -> do
@@ -562,7 +562,7 @@ getPackageDependencies packageName package = case package of
   LocalPackage p -> do
     readLocalDependencies $ Path.global p.path
   WorkspacePackage p ->
-    pure $ Just $ (map (fromMaybe Config.widestRange) <<< unwrap) `onEachEnv` getWorkspacePackageDeps p
+    pure $ Just $ (map Config.constraintToRange <<< unwrap) `onEachEnv` getWorkspacePackageDeps p
   where
   -- try to see if the package has a spago config, and if it's there we read it
   readLocalDependencies :: GlobalPath -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
@@ -571,8 +571,8 @@ getPackageDependencies packageName package = case package of
     Config.readConfig (configLocation </> "spago.yaml") >>= case _ of
       Right { yaml: { package: Just { dependencies: Dependencies deps, test } } } ->
         pure $ Just
-          { core: fromMaybe Config.widestRange <$> deps
-          , test: fromMaybe Config.widestRange <$> (test <#> _.dependencies <#> unwrap # fromMaybe Map.empty)
+          { core: Config.constraintToRange <$> deps
+          , test: Config.constraintToRange <$> (test <#> _.dependencies <#> unwrap # fromMaybe Map.empty)
           }
       Right _ -> die
         [ "Read the configuration at path " <> Path.quote configLocation
@@ -619,7 +619,7 @@ type TransitiveDepsResult =
 -- | workspace is using.
 getTransitiveDeps :: forall a. Config.WorkspacePackage -> Spago (FetchEnv a) (ByEnv PackageMap)
 getTransitiveDeps workspacePackage = do
-  let depsRanges = (map (fromMaybe Config.widestRange) <<< unwrap) `onEachEnv` getWorkspacePackageDeps workspacePackage
+  let depsRanges = (map Config.constraintToRange <<< unwrap) `onEachEnv` getWorkspacePackageDeps workspacePackage
   { workspace } <- ask
   case workspace.packageSet.lockfile of
     -- If we have a lockfile we can just use that - we don't need build a plan, since we store it for every workspace

@@ -8,7 +8,6 @@ import Data.String as String
 import Registry.License as License
 import Registry.Location (Location(..))
 import Registry.PackageName as PackageName
-import Registry.Range as Range
 import Registry.Version as Version
 import Spago.Core.Config (SetAddress(..))
 import Spago.Core.Config as C
@@ -37,7 +36,7 @@ spec =
             <> "\n\n\n-------\nActual:\n-------\n"
             <> Yaml.stringifyYaml C.configCodec parsed
 
-    Spec.it "parses exact version ranges (e.g. '1.0.0' -> '>=1.0.0 <1.0.1')" do
+    Spec.it "parses exact version (e.g. '6.0.1') as ExactVersion" do
       let
         yaml = """
           package:
@@ -47,8 +46,9 @@ spec =
           """
         parsed = unsafeFromRight $ Yaml.parseYaml C.configCodec yaml
         C.Dependencies deps = (unsafeFromJust parsed.package).dependencies
-        actual = Map.lookup (mkPackageName "prelude") deps <#> map Range.print
-      actual `Assert.shouldEqual` Just (Just ">=6.0.1 <6.0.2")
+        actual = Map.lookup (mkPackageName "prelude") deps
+        expected = Just (Just (C.ExactVersion (unsafeFromRight $ Version.parse "6.0.1")))
+      actual `Assert.shouldEqual` expected
 
     Spec.it "reports errors" do
       Yaml.parseYaml C.configCodec invalidLicenseYaml `shouldFailWith`
