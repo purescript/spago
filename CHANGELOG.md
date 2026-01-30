@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Other improvements:
-
 - builds with Cabal successfully
 - update to latest `versions` dependency: https://hackage.haskell.org/package/versions-6.0.1/changelog
 - Fix output truncation with `--json-errors`, many warnings and build failure (#1199)
@@ -56,78 +55,64 @@ Other improvements:
 - on `spago publish` - add support for urls without `.git` suffix.
   Before: `ssh://git@github.com/foo/bar.git` - ok, `ssh://git@github.com/foo/bar` - error
   After: `ssh://git@github.com/foo/bar.git` - ok, `ssh://git@github.com/foo/bar` - ok
-- Support for censoring project warnings at the workspace level
 
 ## [0.21.0] - 2023-05-04
 
 Features:
-
 - Add `spago migrate` command to port a `spago.dhall` configuration to the new-style `spago.yaml` (#901)
 
 Bugfixes:
-
 - Windows: forward the proper exit code when running spago via NPM (#883, #884)
 
 Other improvements:
-
 - CI: cleanup CI for 0.15.0 PureScript updates (#879)
 
 ## [0.20.9] - 2022-05-03
 
 Bugfixes:
-
 - Use `iife` format when bundling browser apps (#880)
 
 ## [0.20.8] - 2022-04-27
 
 Features:
-
 - Make `spago bundle-app` and `spago bundle-module` use esbuild and es modules for projects >= v0.15 (#862)
 - Make `spago run` use es modules for projects >= v0.15 (#858)
 
 Bugfixes:
-
 - Fix `spago run` and `spago test` to accept command line arguments correctly, by writing a JS file to run (#865, #866)
 - Remove support for node versions older than 12.0.0 as they do not work with es modules (#866)
 - Retry git clone up to two times (#834, #873)
 
 Other improvements:
-
 - Docs: update README with documentation for PureScript v0.15 (#867)
 - Linux: support Glibc versions >= `2.24`
 
 ## [0.20.7] - 2022-02-12
 
 Bugfixes:
-
 - Make `spago run` work when `node-args` includes flag-like value (#856)
 
 ## [0.20.6] - 2022-02-09
 
 Bugfixes:
-
 - Oh no, not libtinfo again (#853, #854)
 
 ## [0.20.5] - 2022-02-08
 
 Features:
-
 - Drop need for `psci-support` to be defined in `dependencies` field (#817)
 
 Other improvements:
-
 - Upgrade to latest Dhall version (#848, #851)
 
 ## [0.20.4] - 2022-01-31
 
 Bugfixes:
-
 - Don't warn on unused deps when building with `--deps-only` (#794)
 - Add line buffering for console output when doing parallel work (#800, #729)
 - Avoid writing a JS file when executing `spago run` (#845, #846, #822)
 
 Other improvements:
-
 - CI: Add sha256 checksum generation on the release workflow (#816)
 - CI: Update the Ubuntu runner to a non-deprecated version (#826)
 - Install: replace deprecated `request` by `make-fetch-happen` for NPM installation (#840)
@@ -139,20 +124,17 @@ Other improvements:
 ## [0.20.3] - 2021-05-12
 
 Bugfixes:
-
 - Fix `docs` command error due to bad templates (#792)
 
 ## [0.20.2] - 2021-05-06
 
 Bugfixes:
-
 - Remove `npm install` from release CI to prevent overwriting the install script with the Linux binary (#783, #786)
 - Use spago.cabal instead of package.yaml to get version number (#787, #788)
 - Assume compatibility with newer minor versions of `purs` (#782, #777)
 - Fix `test` command not working on `purs` older than `v0.14.0` (#790, #789)
 
 Other improvements:
-
 - Docs: add more useful comments in spago.dhall (#778, 708)
 - Dev: remove package.yaml, use only cabal file (#780)
 - Dev: use make to orchestrate builds (#781)
@@ -161,12 +143,10 @@ Other improvements:
 ## [0.20.1] - 2021-04-20
 
 Bugfixes:
-
 - Color output now works correctly or is disabled on Windows (#768, #749)
 - Fix `spago docs` for PureScript 0.14, by updating `docs-search` to `0.0.11` (#775, #752)
 
 Other improvements:
-
 - Color output is now automatically disabled when output is redirected to a file.
   Also respects a [`NO_COLOR`](https://no-color.org/) environment variable (#768)
 - Fixes tests failing if the test platform has `psa` installed (#772)
@@ -176,29 +156,23 @@ Other improvements:
 ## [0.20.0] - 2021-04-07
 
 Breaking changes (😱!!!):
-
 - `spago build` fails when source files directly import transitive dependencies (#730, #598)
 
 Bugfixes:
-
 - Properly call `psa` to avoid warnings (#730)
 
 Other improvements:
-
 - `spago build` now detects and warns about unused dependencies (#730, #598)
 
 ## [0.19.2] - 2021-03-31
 
 New features:
-
 - Allow `verify` and `verify-set` to work with alternate backends, when run in the context of a `spago.dhall` with `backend` set (#754)
 
 Bugfixes:
-
 - Don't fail `bump-version` if the packages don't exist in the Bower registry (#682)
 
 Other improvements:
-
 - CI: bump `purescript` version to 0.14.0 (#759)
 - Docs: add FreeBSD installation instructions (#760)
 - Docs: clarify description for `--path` flag (#762, #761)
@@ -206,35 +180,29 @@ Other improvements:
 ## [0.19.1] - 2021-02-22
 
 Bugfixes:
-
 - Fix `psa` not being found on Windows (#740, #693)
 - Use the correct path when erroring out about alternate configurations missing (#746, #747)
 
 Other improvements:
-
 - Bump `dhall` dependency from 1.37.1 to 1.38.0 (#739)
 - Fix caching on Windows CI (#728, #741)
 
 ## [0.19.0] - 2021-01-06
 
 Breaking changes (😱!!!):
-
 - **Deprecate `-d` flag for `deps-only` (#712)** - instead only support the `--deps-only` long form
 - **Switch from `-D` to `-d` as shorthand for specifying dependencies within `spago repl` (#712)**
 
 New features:
-
 - Add `spago script` command. It can be used to run standalone PureScript files as scripts (#712, #724, #683)
 
 Other improvements:
-
 - `spago repl` will no longer create a (mostly unused) full project skeleton in a temporary directory when a config is not found (#712)
 - `spago init` and `spago upgrade-set` will now pick the latest set for the available compiler, rathen than just the latest (#721, #687, #657, #666)
 
 ## [0.18.1] - 2020-12-22
 
 Breaking changes (😱!!!):
-
 - **Remove `login` command (#705)**
 
   It was introduced in preparation for a `publish` command that would require a GitHub token to be provided,
@@ -249,38 +217,32 @@ Breaking changes (😱!!!):
   for all the existing configurations that make use of Dhall reserved words (such as `assert`, `let`, etc).
 
 New features:
-
 - Add `exec-args` as alias to `node-args`, to clarify that the args are
   forwarded to whichever backend is being targeted (go, js, etc), not
   exclusively NodeJS (#710, #709)
 
 Bugfixes:
-
 - Don't create the global cache folder at all if the user specifies `--global-cache=skip` (#705, 704)
 - Don't require a `spago.dhall` anymore when the `--no-build` flag is passed (#705, 634)
 
 Other improvements:
-
 - CI: switch from Travis to GitHub Actions (#695)
 
 ## [0.17.0] - 2020-10-29
 
 Breaking changes (😱!!!):
-
 - **Specify the package set version via `--tag` (#680)**
 
   Example usage: `spago init --tag psc-0.13.2-20190725` and `spago upgrade-set --tag psc-0.13.2-20190725`.
   This is a breaking change because we are removing support for the old spacchetti/spacchetti-style location (i.e. in the src/packages.dhall) for the upgrade-set command.
 
 Bugfixes:
-
 - Remove dependency on `libtinfo`, removing the biggest cause of friction for using the precompiled binary on various Linux distros (#684)
 - Correctly parse flags to be passed to the compiler (#688)
 
 ## [0.16.0] - 2020-08-14
 
 Breaking changes (😱!!!):
-
 - **Remove shorthands for `color`, `before`, `then`, and `else` flags (#670, #664)**
 
   Both `then` and `target` had the shorthand `t`, so the shorthand for `then` was removed.
@@ -288,7 +250,6 @@ Breaking changes (😱!!!):
   natural to remove the shorthands for the other shared commands too, so as to not cause
   future shorthand name conflicts.
   A similar collision problem happened with the `color` flag, so its shorthand was removed.
-
 - **Pass main function argument to `--run` for alternate backends (#668)**
 
   This is a braking change because now alternate backends are expected to accept
@@ -297,18 +258,15 @@ Breaking changes (😱!!!):
   it able to support this.
 
 New features:
-
 - Upgrade to `docs-search@v0.0.10`, that introduces grouping by package in local docs (#679)
 - Ignore `.gitignore`d files in `--watch` by default - you can disable this with `--allow-ignored` (#665)
 - Support `upgrade-set` for alternative package-set repositories (#671)
 
 Bugfixes:
-
 - Make the output of `spago --version` the same with `spago version` (#675)
 - Ensure the existence of the global cache directory (#672, #667)
 
 Other improvements:
-
 - Docs: updated package addition/overriding syntax to use `with` syntax (#661, #663)
 - Docs: fix Webpack template (#653)
 - Docs: document how to pass arguments to `main` (#655)
@@ -317,16 +275,13 @@ Other improvements:
 ## [0.15.3] - 2020-06-15
 
 New features:
-
 - Add `--version` flag to print the version (in addition to the `version` command) (#628)
 
 Bugfixes:
-
 - Actually run `else` commands when `spago run` fails (#632)
 - Don't use absolute paths for executables in Windows (#639)
 
 Other improvements:
-
 - Docs: note that `build` also runs `install` (#624)
 - Docs: document how to install all the packages in the set (#625)
 - Docs: stop suggesting using Parcel and Spago at the same time (#626)
@@ -339,20 +294,18 @@ Other improvements:
 - CI: upgrade to `purs` v.13.8 (#642)
 - CI: stop upgrading broken static binary on release (#620)
 
+
 ## [0.15.2] - 2020-04-15
 
 Breaking changes (😱!!!):
-
 - **Remove the deprecated `--no-share-output` flag (#610)**
 
   It has been disabled since some time now, so you can just remove it from your build commands.
 
 New features:
-
 - Add the `spago path global-cache` subcommand to output the location of the global cache (#613, #591)
 
 Bugfixes:
-
 - Fix encoding issues causing crashes when running in various locales (#595, #533, #507, #576)
 - Respect TERM=dumb by disabling colors when set (#581, #579)
 - Run package set commands without a project config being present (#393, #610)
@@ -362,7 +315,6 @@ Bugfixes:
 - Ensure dependencies are installed before starting the repl (#611, #610)
 
 Other improvements:
-
 - Errors: make the "dropping the 'purescript-' prefix" warning milder (#571, #570)
 - Docs: update README example to include source files (#574)
 - Docs: add info about SPDX license for publishing (#606)
@@ -373,7 +325,6 @@ Other improvements:
 ## [0.14.0] - 2020-02-09
 
 Breaking changes (😱!!!):
-
 - **Replace `list-packages` command with `ls packages` and `ls deps` (#563)**
 
   This is happening for future extensibility, i.e. so that we can add any
@@ -381,7 +332,6 @@ Breaking changes (😱!!!):
   list more things.
 
   How things got renamed:
-
   - `spago list-packages` → `spago ls packages`
   - `spago list-packages -f direct` → `spago ls deps`
   - `spago list-packages -f transitive` → `spago ls deps -t`
@@ -389,21 +339,18 @@ Breaking changes (😱!!!):
   Note: the `list-packages` command is still there to provide a semi-gracious transition path for folks, and will be removed in a future release.
 
 New features:
-
 - Allow `verify-set` to work with either a `spago.dhall` or a `packages.dhall` (#515)
 - Create `.purs-repl` file when running `spago init` (#555, #558)
 - Add `--source-maps` flag to build commands (#545, #562)
 - Add `--quiet` and `--no-color` global flags to better control logging (#548)
 
 Bugfixes:
-
 - Fix a few watch-mode buffering and concurrency issues (#549)
 - Fix watching relative paths in sources config (e.g. `../src/**/*.purs`) (#556)
 - Make the `ensureConfig` function safe (#561, #531)
 - Retry downloading packages on network errors (#557, #565)
 
 Other improvements:
-
 - Docs: fix misc typos in README (#566)
 - Docs: fix typo in `packages.dhall` template (#539)
 - Docs: remove mention of shared output folder in README (#559, #552)
@@ -416,17 +363,14 @@ Other improvements:
 ## [0.13.1] - 2020-01-10
 
 New features:
-
 - Add `--before`, `--then` and `--else` flags to specify commands to run before and after a build (#532, #410)
 
 Other improvements:
-
 - Docs: fix npm command line argument in README (#597)
 
 ## [0.13.0] - 2019-12-19
 
 Breaking changes (😱!!!):
-
 - **Disable `output` folder sharing (#526)**
 
   This reverts an (accidentally) breaking changes introduced in `0.11.0`, for which
@@ -435,11 +379,9 @@ Breaking changes (😱!!!):
   we'll stop trying to be smart about it here.
 
 New features:
-
 - Enable HTTP(S) proxies on the NPM installation (#460, #522)
 
 Other improvements:
-
 - Log backend build command when building (#521)
 - Deps: update `purescript-docs-search` version to `0.0.6` (#525)
 - CI: update `purs` version to `0.13.5` (#513)
@@ -450,19 +392,16 @@ Other improvements:
 ## [0.12.1] - 2019-11-17
 
 Bugfixes:
-
 - Fix macOS release artifact (#503, #504)
 - Complete parser implementation for module declarations, for `spago test` (#499)
 
 Other improvements:
-
 - Docs: fix typo in README (#498)
 - Errors: use `logWarn` for all warnings (#501)
 
 ## [0.12.0] - 2019-11-15
 
 Breaking changes (😱!!!):
-
 - **Revert back to dynamically linked binary on Linux (#502, #500, #497)**
 
   The static binary was still dynamically linking to `glibc`, causing it to be broken on
@@ -475,42 +414,36 @@ This is identical to `0.11.0`, but published under a new version number due to m
 ## [0.11.0] - 2019-11-12
 
 Breaking changes (😱!!!):
-
 - **Remove `psc-package`-related commands (#423, #425)**
 
   Since we are approaching a stable release and `spago` feature set is a superset of `psc-package` ones,
   from this release we do not support the commands to interop with `psc-package`:
   `psc-package-local-setup`, `psc-package-insdhall` and `psc-package-clean` commands.
-
 - **Start sharing the output folder in monorepos, to reduce build duplication (#377, #422)**
 
   This is a breaking change because your build might stop working if you were relying
   on the `output` folder being in a certain place, and if you were passing `--output`
   as an option to `purs`.
   However, you can pass the `--no-share-output` flag to disable this behavior
-
 - **Build static binaries for Linux (#437, 427)**
 
   This should fix the dynamic-library-compatibility problems on some distributions.
   It should work as well as the old dynamic binary, but it's theoretically a breaking change since
   some behaviours might be different.
-
 - **Move all logging to `stderr` (#256, #475, #476, #486)**
 
   All "business output" (e.g. `spago sources`) will stay on `stdout`, so in practice everything
   should be fine, but this is theoretically a breaking change since someone might be depending
   on the output we had so far.
 
-New features:
 
+New features:
 - add support for `spago build` and `spago run` with alternate backends (#355, #426, #452, #435)
 
   E.g: add the key `backend = "psgo"` in `spago.dhall` to compile/run with `psgo`
-
 - add new command `spago path` that returns the paths used in the project.
 
   E.g. `spago path output` returns the output path so that it can be shared with tools such as `purs-loader`. (#463)
-
 - `spago docs` now displays a link to the generated docs' `index.html`, and opens them in the browser when passed the `--open` flag (#379, #421)
 - `spago init` has new `--no-comments` flag which skips adding tutorial comments to the generated `spago.dhall` and `packages.dhall` files (#417, #428)
 - `spago verify-set` now compiles everything, to detect duplicate module names. This can be disabled with `--no-check-modules-unique` (#438)
@@ -518,7 +451,6 @@ New features:
 - `spago run` now allows to pipe `stdin` to your running project (#488, #490)
 
 Bugfixes:
-
 - Fix Ctrl-C handling in REPL when using NPM installation on Windows (#493, #483)
 - Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436, #439)
 - Warn (but don't error) when trying to `--watch` missing directories (#406, #420, #447, #448)
@@ -528,7 +460,6 @@ Bugfixes:
 - Fix `--config` option: get the correct paths when config file is in another directory (#478, #484)
 
 Other improvements:
-
 - Tests: speed up test suite by replacing some end-to-end tests with unit/property tests (#445, #440)
 - Tests: update instructions to run tests (#449)
 - Tests: always run test suites with UTF8 encoding (#482)
@@ -542,10 +473,10 @@ Other improvements:
 - Deps: revert to GHC 8.4.4 and LTS-12 (#479)
 - CI: fix release code (#494, #495)
 
+
 ## [0.10.0] - 2019-09-21
 
 Breaking changes (😱!!!):
-
 - **Flags and arguments that you want to give to `purs` are now passed with `--purs-args` (#353, #366)**
 
   The previous behaviour in which all arguments that could not parse as `spago` arguments
@@ -553,14 +484,12 @@ Breaking changes (😱!!!):
   arguments).
 
 New features:
-
 - Support watching js files (#407, #205)
 - New `--no-search` flag for `spago docs` to skip patching the documentation using `purescript-docs-search` (#400)
 - New `-x` flag for specifying the config path location (#357, #329)
 - New `spago login` command, to save a GitHub token to the cache so it can be used for various operations hitting GitHub (#391, #403)
 
 Bugfixes:
-
 - "Quit" command in watch mode now actually quits (#390, #389)
 - Do not compile files twice when using `--watch` and Vim (#346, #371)
 - Use `git clone` instead of `git fetch` when fetching a package, so all tags can be installed (#373, #374)
@@ -571,7 +500,6 @@ Bugfixes:
 - Look up remote imports dynamically when doing frozen check, to always find the right `packages.dhall` (#349, #402)
 
 Other Improvements:
-
 - Performance: make no-op `spago install` faster (#409, #412)
 - CI: remove reviews limitation on mergify (#354)
 - CI: various fixes (#362, #368, #382, #388, #418)
@@ -584,7 +512,6 @@ Other Improvements:
 ## [0.9.0] - 2019-07-30
 
 Breaking changes (!!!):
-
 - **Rename `package-set-upgrade` to `upgrade-set` (#336)**
 
   You now have to call `spago upgrade-set` if you wish to upgrade your package-sets version
@@ -614,8 +541,8 @@ Breaking changes (!!!):
     { foobar = ../foobar/spago.dhall as Location }
   ```
 
-New features:
 
+New features:
 - Add searchbar to docs generated with `spago docs` (#340, #333, #89)
 - Add automatic migration of Bower projects when doing `spago init` (#159, #272, #342)
 - Add `bump-version` command, for generating `bower.json` files and making version tags in Git (#203, #289, #324)
@@ -627,7 +554,6 @@ New features:
 - Add `--deps-only` flag to build dependencies alone (#330, #331)
 
 Bugfixes:
-
 - Fix `spago install` failing when version branch names differ only by case on case-insensitive filesystems (#285)
 - Change `--node-args` shortcut to `-a` to avoid clash (#292, #293)
 - Stop reformatting config files if not necessary (#300, #302, #339)
@@ -638,7 +564,6 @@ Bugfixes:
 - Generate hashes when doing `psc-package-insdhall` (#337, #240)
 
 Other Improvements:
-
 - Curator: log exceptions to file to monitor eventual issues (#284)
 - Docs: update README with newest features (#286)
 - Docs: add docs about switching from Bower (#317)
@@ -652,12 +577,12 @@ Other Improvements:
 - CI: fix missing "commit since last release" message (#326)
 - CI: add configuration for Mergify (#332)
 
+
 ## [0.8.5] - 2019-06-18
 
 ZuriHac edition 🎉
 
 New features:
-
 - Add `sources` key to config to customize the sources used in the build (#273, #173)
 - Add `--json` flag to the `list-packages` command to optionally output JSON (#263)
 - Add `--clear-screen` flag to to clear the screen when watching (#271, #209)
@@ -665,14 +590,12 @@ New features:
 - Add `--node-args` flag to pass arguments to Node in `run/test` commands (#267, #275)
 
 Bugfixes:
-
 - Fix `spago install` failing when version branch name contains `/`'s (#257, #258)
 - Report all missing packages together when it's not possible to build an install plan (#264, #223)
 - Pull the latest package-sets version when doing `init` (#254, #279)
 - Fix `spago install` not adding new dependencies when list is empty (#282, #281)
 
 Other Improvements:
-
 - Docs: add visual overview of what Spago does "under the hood" in typical project workflow (#211)
 - Docs: fix outdated references in README (#266)
 - Tests: untangle testcases environments (#265, #214)
@@ -681,18 +604,15 @@ Other Improvements:
 ## [0.8.4] - 2019-06-12
 
 New features:
-
 - Add option to clear the screen to spago build/run (#209)
 - Add option to pass args to node when doing spago test/run (#267)
 
 Bugfixes:
-
 - Produce an error message when asserting directory permissions (#250)
 - Read purs version from inside the set instead of its GitHub tag (#253, #225)
 - Skip copy to global cache when encountering a permissions problem (#220, #260)
 
 Other improvements:
-
 - Errors: add many debug logs (#251)
 - CI: rewrite Curator in Haskell (#239)
 - CI: build only `master` and tags on Travis (#247)
@@ -702,14 +622,12 @@ Other improvements:
 ## [0.8.3] - 2019-06-03
 
 Bugfixes:
-
 - Fix `spago psc-package-clean` on Windows (#224)
 - Fix `spago repl` starting on Windows where PureScript was installed with NPM (#235, #227)
 - Fix missing filenames when encountering parse errors in Dhall files (#241, #222)
 - Download packages in local repo instead of global tempdir (#243, #220)
 
 Other improvements:
-
 - Tests: test suite now works fully on Windows (#224)
 - CI: parametrize LTS version (#236)
 - CI: get PureScript binary for Travis from GitHub releases (#234)
@@ -718,16 +636,13 @@ Other improvements:
 ## [0.8.1] - 2019-05-29
 
 New features:
-
 - Add global cache to avoid redownloading dependencies (#188, #133)
 - Add ability to pin a version to a commit hash in addition to branches and tags (#188, #200)
 
 Bugfixes:
-
 - Another attempt to fix NPM and Yarn installations on Windows (#215, #187)
 
 Other improvements:
-
 - The test suite is now written in Haskell rather than Python (#212, #177)
 - Add `spago-curator` tool to generate metadata from the package set (#202)
 - Improve docs (#208, #207, #218, #217)
@@ -735,15 +650,12 @@ Other improvements:
 ## [0.8.0] - 2019-05-16
 
 Breaking changes:
-
 - Rename "bundle" to "bundle-app" and "make-module" to "bundle-module" for consistency (#175, #147)
 
 Bugfixes:
-
 - Don't fail `init` if a `packages.dhall` is already there, as it's the case of psc-package projects with local spacchetti (#180)
 
 Other improvements:
-
 - Remove CI check for package-sets version, add cron script to update it instead (#185)
 - Fill in CHANGELOG from release notes (#186)
 - Fix LICENSE file so GitHub recognizes it (#197)
@@ -753,38 +665,32 @@ Other improvements:
 ## [0.7.7] - 2019-04-28
 
 New features:
-
 - Install "psci-support" on project init (#174)
 
 ## [0.7.5] - 2019-03-30
 
 Bugfixes:
-
 - Fix NPM and Yarn installations on Linux and Windows (#157, #167, #166)
 
 ## [0.7.4] - 2019-03-27
 
 Bugfixes:
-
 - correctly parse package-set release tag to avoid generating unnecessary warnings (#160, #161)
 - skip 0.7.3.0 as I forgot to update the version field (#164)
 
 ## [0.7.2] - 2019-03-21
 
 New features:
-
 - introduce a `--verbose` flag to print debug information - e.g. `purs` commands being called by Spago (#154, #155)
 
 ## [0.7.1] - 2019-03-19
 
 New features:
-
 - Add `--watch` flag to `build`, `test`, `run`, `bundle` and `make-module` commands (#65, #126, #153)
 - Add `spago docs` command, to generate documentation from the project and all dependencies (#127)
 - Add `spago run` command, to run your project (#131, #137)
 
 Other fixes and improvements:
-
 - Automatically build in commands that require the project to be built (#146, #149)
 - Don't automatically create a configuration if not found (#139, #144)
 - Always ensure that the package-set has a hash on it, for speed and security reasons (#128)
@@ -796,14 +702,12 @@ Other fixes and improvements:
 ## [0.7.0] - 2019-03-03
 
 Breaking changes:
-
 - The NPM package `purescript-spago` is now deprecated. New releases will be published only to the package `spago` (#115, #44)
 - [Spacchetti has been merged in the official package-set](https://github.com/purescript/package-sets/pull/271): this means that `spago` will now use that as the reference package-set. (#120)
 
   As a result of this, the command `spago spacchetti-upgrade` has been renamed to `spago package-set-upgrade`.
 
 New features:
-
 - Support Windows in NPM install (#121, #109)
 - Add `spago freeze` command to recompute hashes of the package-set (#113)
 - Add `spago verify` and `spago verify-set` commands (#108, #14)
@@ -811,14 +715,12 @@ New features:
 - Check that the version of the installed compiler is at least what the package-set requires (#101, #107, #117, #116)
 
 Other improvements:
-
 - Improve the installation: do less work and print less useless stuff (#110, #112, #114)
 - Skip the copy of template files if the source directories exist (#102, #105)
 
 ## [0.6.4] - 2019-02-07
 
 New features:
-
 - [`spago init` will search for a `psc-package.json`, and try to port it to your new `spago.dhall` config](https://github.com/purescript/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#switching-from-psc-package) (#76)
 - [Add the `spacchetti-upgrade` command, to automatically upgrade to the latest Package Set](https://github.com/purescript/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#upgrading-the-package-set) (#93, #73)
 - [You can now add local packages to the Package Set 🎉](https://github.com/purescript/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#adding-and-overriding-dependencies-in-the-package-set) (#96, #88)
@@ -826,12 +728,10 @@ New features:
 - Now every time you try to build, Spago will also check that dependencies are installed (#75, #82)
 
 Bugfixes:
-
 - Spago would crash if `$HOME` was not set, now it doesn't anymore (#85, #90)
 - `spago test` now actually works on Windows (#79)
 
 Other improvements:
-
 - Maany docs improvements (#83, #76, #93, #96, #99, #100)
 - From this release we are publishing an experimental Windows build (#81)
 - Add a PR checklista, so we don't forgetti (#86)
@@ -839,25 +739,21 @@ Other improvements:
 ## [0.6.3] - 2019-01-18
 
 New features:
-
 - `spago repl` will now spawn a PureScript repl in your project (#46, #62)
 - `spago list-packages` will list all the packages available in your package-set (#71)
 
 ## [0.6.2] - 2019-01-07
 
 New features:
-
 - `spago build` and `spago test` now have the `--path` option to specify custom source paths to include (#68, #69)
 - `spago build` and `spago test` can now pass options straight to `purs compile` (#66, #49)
 
 ## [0.6.1] - 2018-12-26
 
 New features:
-
 - Add initial windows support (#47, #48, #58): now `spago` should run fine on Windows. Unfortunately we're not distributing binaries yet, but the only installation method available is from source (with e.g. `stack install`)
 
 Bugfixes:
-
 - Don't overwrite files when doing `init`, just skip the copy if some file exists (#56)
 - Print `git` output in case of failure when doing `install` (#54, #59)
 - Include building `src/*` when running `test` (#50, #53)
@@ -868,7 +764,6 @@ Bugfixes:
 First release under the name "spago".
 
 Main changes from the previous "spacchetti-cli" incarnation:
-
 - Rename `spacchetti-cli` → `spago` (#23)
 - Publish on NPM under the new name `purescript-spago` (#35)
 - Add some commands from `psc-package`:

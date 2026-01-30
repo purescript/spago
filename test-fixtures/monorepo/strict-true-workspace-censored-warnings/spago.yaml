@@ -1,7 +1,7 @@
 workspace:
   buildOpts:
-    censor_project_warnings: all
-    censor_test_warnings: all
-  package_set:
+    censorProjectWarnings: all
+    censorTestWarnings: all
+  packageSet:
     registry: 0.0.1
-  extra_packages: {}
+  extraPackages: {}
