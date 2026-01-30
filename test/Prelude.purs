@@ -65,7 +65,7 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
       spago' stdin args =
         Cmd.exec
           (Path.global "node")
-          ([ Path.toRaw $ oldCwd </> "bin" </> "index.dev.js" ] <> args)
+          ([ "--no-warnings=ExperimentalWarning", Path.toRaw $ oldCwd </> "bin" </> "index.dev.js" ] <> args)
           $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = stdin }
 
       spago = spago' StdinNewPipe
@@ -420,4 +420,36 @@ assertWarning paths shouldHave stdErr = do
       <> show paths
       <> "\n\nStderr was:\n"
       <> stdErr
+
+-- | Run a git command in the current directory
+git :: Array String -> Aff Unit
+git = git' Nothing
+
+-- | Run a git command in a specific directory
+git' :: Maybe GlobalPath -> Array String -> Aff Unit
+git' cwd args =
+  Cmd.exec (Path.global "git") args
+    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
+    >>= shouldBeSuccess
+
+-- | Create a git repo with a spago.yaml in the test's temp directory.
+-- | Cleanup is automatic when the test's temp directory is removed.
+mkGitRepo
+  :: RootPath
+  -> { name :: String, deps :: Array String }
+  -> Aff LocalPath
+mkGitRepo testCwd { name, deps } = do
+  let repo = testCwd </> ("lib-" <> name)
+  FS.mkdirp repo
+  let depsYaml = if Array.null deps then "[]" else "\n" <> foldMap (\d -> "    - " <> d <> "\n") deps
+  FS.writeTextFile (repo </> "spago.yaml") $
+    "package:\n  name: " <> name <> "\n  dependencies: " <> depsYaml <> "\nworkspace:\n  packageSet:\n    registry: 0.0.1\n"
+  FS.mkdirp (repo </> "src")
+  FS.writeTextFile (repo </> "src/Main.purs") $ "module " <> String.toUpper name <> ".Main where\n"
+  git' (Just $ Path.toGlobal repo) [ "init", "-b", "main" ]
+  git' (Just $ Path.toGlobal repo) [ "config", "user.name", "test" ]
+  git' (Just $ Path.toGlobal repo) [ "config", "user.email", "test@test.com" ]
+  git' (Just $ Path.toGlobal repo) [ "add", "." ]
+  git' (Just $ Path.toGlobal repo) [ "commit", "-m", "initial" ]
+  pure repo
 

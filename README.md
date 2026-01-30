@@ -1142,6 +1142,16 @@ The transfer procedure is automated by Spago commands, and goes as follows:
 The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations,
 plus a lot of diagnostic info, so you might want to use it to troubleshoot weird behaviours and/or crashes.
 
+### Force a registry refresh
+
+Spago caches the Registry Index for 15 minutes. If you need a package that was just published, you can force a refresh:
+
+```console
+$ spago install --refresh some-new-package
+```
+
+The `--refresh` flag works with any command that accesses the Registry (`install`, `build`, `fetch`, etc.).
+
 ### Install autocompletions for `bash`
 
 You can just add this to your `.bashrc`:
@@ -1428,6 +1438,9 @@ package:
     #    The registry will then check if the package version is included
     #    in this range.
     - package-with-range: ">=1.1.1 <2.0.0"
+    # 4) specify an exact version
+    #    Shorthand for ">=1.2.3 <1.2.4", pinning to a specific patch version.
+    - package-with-exact-version: "1.2.3"
 
   # Optional description for the package
   description: "a useful package"

@@ -11,9 +11,7 @@ import Data.String.Regex as Regex
 import Data.String.Regex.Flags as RF
 import Node.Platform as Platform
 import Node.Process as Process
-import Spago.Cmd as Cmd
 import Spago.FS as FS
-import Spago.Path as Path
 import Test.Spec (Spec)
 import Test.Spec as Spec
 
@@ -87,6 +85,9 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "fetch" ] >>= shouldBeSuccess
+      -- Refresh the registry cache timestamp because Windows CI is slow enough
+      -- that it can go stale (>15min) between earlier tests and this one
+      spago [ "registry", "package-sets" ] >>= shouldBeSuccess
       spago [ "publish", "-p", "root", "--offline" ] >>= shouldBeFailureErr (fixture "publish/1307-publish-dependencies/expected-stderr.txt")
 
     Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture, testCwd } -> do
@@ -195,12 +196,3 @@ doTheGitThing = do
   git [ "commit", "-m", "first" ]
   git [ "tag", "v0.0.1" ]
   git [ "remote", "add", "origin", "git@github.com:purescript/aaa.git" ]
-
-git :: Array String -> Aff Unit
-git = git' Nothing
-
-git' :: Maybe GlobalPath -> Array String -> Aff Unit
-git' cwd args =
-  Cmd.exec (Path.global "git") args
-    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
-    >>= shouldBeSuccess
