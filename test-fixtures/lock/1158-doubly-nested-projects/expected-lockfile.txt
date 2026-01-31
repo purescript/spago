@@ -486,7 +486,7 @@
     "prelude": {
       "type": "registry",
       "version": "6.0.1",
-      "integrity": "sha256-o8p6SLYmVPqzXZhQFd2hGAWEwBoXl1swxLG/scpJ0V0=",
+      "integrity": "sha256-qicw3g9AkjIxyVp73o1dF9BiTCMWouPk9rYe6AASBCU=",
       "dependencies": []
     }
   }
