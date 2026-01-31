@@ -17,7 +17,6 @@ import Spago.Prelude
 import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Codec as Codec
 import Data.Codec.JSON as CJ
-import Data.Codec.JSON.Common as CJ.Common
 import Data.Codec.JSON.Strict as CJS
 import Data.Profunctor as Profunctor
 import Record as Record
@@ -62,7 +61,6 @@ type WorkspaceLockPackage =
 
 type WorkspaceLockPackageEnv =
   { dependencies :: Core.Dependencies
-  , build_plan :: Set PackageName
   }
 
 lockfileCodec :: CJ.Codec Lockfile
@@ -86,7 +84,6 @@ workspaceLockCodec = CJ.named "WorkspaceLock" $ CJS.objectStrict
 
   envCodec = CJ.named "Environment" $ CJS.objectStrict
     $ CJS.recordProp @"dependencies" Config.dependenciesCodec
-    $ CJS.recordProp @"build_plan" (CJ.Common.set PackageName.codec)
     $ CJS.record
 
 packageSetCodec :: CJ.Codec PackageSetInfo
