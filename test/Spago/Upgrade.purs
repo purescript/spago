@@ -66,7 +66,7 @@ spec = Spec.around withTempDir do
 
         result <- spago [ "upgrade" ]
         shouldBeSuccess result
-        either _.stderr _.stderr result `shouldContain` "No dependencies to upgrade"
+        either _.stderr _.stderr result `shouldContain` "Upgrade successful!"
 
       Spec.it "upgrades all packages when none selected in multi-package workspace" \{ spago, testCwd, fixture } -> do
         FS.copyTree
@@ -153,6 +153,29 @@ spec = Spec.around withTempDir do
         postConfig' <- FS.readTextFile (testCwd </> "spago.yaml")
         -- Should still be "*"
         postConfig' `shouldContain` "prelude: \"*\""
+
+      Spec.it "does not persist upgrade if build fails" \{ spago, testCwd } -> do
+        spago [ "init", "--name", "test-rollback", "--use-solver" ] >>= shouldBeSuccess
+        spago [ "install", "either" ] >>= shouldBeSuccess
+
+        -- Narrow either's constraint so upgrade would change it
+        replaceConstraint (testCwd </> "spago.yaml") "either" ">=6.0.0 <6.0.1"
+
+        -- Save original config
+        originalConfig <- FS.readTextFile (testCwd </> "spago.yaml")
+
+        -- Add invalid PureScript code that will fail to compile
+        FS.writeTextFile (testCwd </> "src" </> "Main.purs") "this is not valid purescript"
+
+        -- Attempt upgrade - should fail during build verification
+        result <- spago [ "upgrade" ]
+        shouldBeFailure result
+        either _.stderr _.stderr result `shouldContain` "Build failed"
+        either _.stderr _.stderr result `shouldContain` "Config was not modified"
+
+        -- Config should be unchanged
+        postConfig <- FS.readTextFile (testCwd </> "spago.yaml")
+        postConfig `Assert.shouldEqual` originalConfig
 
   where
   -- Helper to replace a dependency constraint in spago.yaml
