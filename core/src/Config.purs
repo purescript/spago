@@ -40,7 +40,6 @@ module Spago.Core.Config
 import Spago.Core.Prelude
 
 import Codec.JSON.DecodeError as CJ.DecodeError
-import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec as Codec
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Record as CJ.Record
@@ -353,6 +352,8 @@ workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJS.objectStrict
 type WorkspaceBuildOptionsInput =
   { output :: Maybe RawFilePath
   , censorLibraryWarnings :: Maybe CensorBuildWarnings
+  , censorProjectWarnings :: Maybe CensorBuildWarnings
+  , censorTestWarnings :: Maybe CensorBuildWarnings
   , statVerbosity :: Maybe StatVerbosity
   }
 
@@ -360,12 +361,14 @@ buildOptionsCodec :: CJ.Codec WorkspaceBuildOptionsInput
 buildOptionsCodec = CJ.named "WorkspaceBuildOptionsInput" $ CJS.objectStrict
   $ CJS.recordPropOptional @"output" CJ.string
   $ CJS.recordPropOptional @"censorLibraryWarnings" censorBuildWarningsCodec
+  $ CJS.recordPropOptional @"censorProjectWarnings" censorBuildWarningsCodec
+  $ CJS.recordPropOptional @"censorTestWarnings" censorBuildWarningsCodec
   $ CJS.recordPropOptional @"statVerbosity" statVerbosityCodec
   $ CJS.record
 
 data CensorBuildWarnings
   = CensorAllWarnings
-  | CensorSpecificWarnings (NonEmptyArray WarningCensorTest)
+  | CensorSpecificWarnings (Array WarningCensorTest)
 
 derive instance Eq CensorBuildWarnings
 
@@ -379,7 +382,7 @@ censorBuildWarningsCodec = Codec.codec' decode encode
   where
   encode = case _ of
     CensorAllWarnings -> CJ.encode CJ.string "all"
-    CensorSpecificWarnings censorTests -> CJ.encode (CJ.array warningCensorTestCodec) $ NonEmptyArray.toArray censorTests
+    CensorSpecificWarnings censorTests -> CJ.encode (CJ.array warningCensorTestCodec) censorTests
 
   decode json = decodeNoneOrAll <|> decodeSpecific
     where
@@ -389,7 +392,7 @@ censorBuildWarningsCodec = Codec.codec' decode encode
 
     decodeSpecific = CensorSpecificWarnings <$> do
       arr <- Codec.decode (CJ.array warningCensorTestCodec) json
-      except $ Either.note (CJ.DecodeError.basic "Expected array of warning codes") $ NonEmptyArray.fromArray arr
+      except $ Right arr
 
 data WarningCensorTest
   = ByCode String

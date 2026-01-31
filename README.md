@@ -1393,7 +1393,7 @@ workspace:
       # Value 1: "all" - All warnings are censored
       all
 
-      # Value 2: `NonEmptyArray (Either String { byPrefix :: String })`
+      # Value 2: `Array (Either String { byPrefix :: String })`
       # - String values:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
@@ -1404,6 +1404,16 @@ workspace:
       # see https://yaml-multiline.info/
       - byPrefix: >
           Data.Map's `Semigroup` instance
+
+    # Specify whether to censor warnings coming from the compiler
+    # for files in workspace project source
+    # Optional - takes the same values as censorLibraryWarnings above
+    censorProjectWarnings: all
+
+    # Specify whether to censor warnings coming from the compiler
+    # for files in workspace project tests
+    # Optional - takes the same values as censorLibraryWarnings above
+    censorTestWarnings: all
 
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.
