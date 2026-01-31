@@ -1,15 +1,20 @@
-module Test.Spago.Install where
+module Test.Spago.Install
+  ( spec
+  , forceResetSpec
+  ) where
 
 import Test.Prelude
 
 import Data.Array as Array
 import Data.Map as Map
+import Data.String as String
 import Effect.Now as Now
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.Core.Config as Config
 import Spago.FS as FS
+import Spago.Git as Git
 import Spago.Log (LogVerbosity(..))
 import Spago.Path as Path
 import Spago.Paths as Paths
@@ -75,13 +80,13 @@ spec = Spec.around withTempDir do
                 }
             )
             ( Dependencies $ Map.fromFoldable
-                [ Tuple (mkPackageName "prelude") (Just $ mkRange ">=6.0.0 <7.0.0")
-                , Tuple (mkPackageName "lists") (Just $ mkRange ">=1000.0.0 <1000.0.1")
+                [ Tuple (mkPackageName "prelude") (Just $ Config.VersionRange $ mkRange ">=6.0.0 <7.0.0")
+                , Tuple (mkPackageName "lists") (Just $ Config.VersionRange $ mkRange ">=1000.0.0 <1000.0.1")
                 ]
             )
             ( Dependencies $ Map.fromFoldable
-                [ Tuple (mkPackageName "spec") (Just $ mkRange ">=7.0.0 <8.0.0")
-                , Tuple (mkPackageName "maybe") (Just $ mkRange ">=1000.0.0 <1000.0.1")
+                [ Tuple (mkPackageName "spec") (Just $ Config.VersionRange $ mkRange ">=7.0.0 <8.0.0")
+                , Tuple (mkPackageName "maybe") (Just $ Config.VersionRange $ mkRange ">=1000.0.0 <1000.0.1")
                 ]
             )
 
@@ -133,6 +138,74 @@ spec = Spec.around withTempDir do
       writeConfigWithEither testCwd
       spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
 
+    Spec.it "refresh flag forces registry refresh and bypasses DB metadata cache" \{ spago, testCwd } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      -- The --refresh flag should force a registry refresh regardless of cache age
+      result1 <- spago [ "install", "--refresh" ]
+      shouldBeSuccess result1
+      either _.stderr _.stderr result1 `shouldContain` "Refreshing the Registry Index..."
+      -- Remove lockfile to force dependency resolution on next install
+      FS.unlink (testCwd </> "spago.lock")
+      -- With --refresh, should also bypass DB metadata cache and read from files
+      result2 <- spago [ "install", "-v", "--refresh", "effect" ]
+      shouldBeSuccess result2
+      either _.stderr _.stderr result2 `shouldContain` "Bypassing cache, reading metadata from file"
+
+    Spec.it "skips cloning during resolution when git package has declared deps" \{ spago, testCwd, fixture } -> do
+      FS.copyFile { src: fixture "git-declared-deps/with-declared-deps.yaml", dst: testCwd </> "spago.yaml" }
+      FS.mkdirp (testCwd </> "src")
+      FS.writeTextFile (testCwd </> "src/Main.purs") "module Main where"
+
+      -- first build: cloning should happen AFTER "Downloading dependencies..." (during fetch phase)
+      result1 <- spago [ "build" ]
+      result1 # shouldBeSuccess
+      let stderr1 = either _.stderr _.stderr result1
+      let downloadingIdx = String.indexOf (String.Pattern "Downloading dependencies...") stderr1
+      let cloningIdx = String.indexOf (String.Pattern "Cloning") stderr1
+      case downloadingIdx, cloningIdx of
+        Just d, Just c -> d `Assert.shouldSatisfy` \_ -> d < c
+        _, _ -> Assertions.fail $ "Expected 'Downloading dependencies...' before 'Cloning' but got:\n" <> stderr1
+
+      -- Verify lockfile was created with correct content
+      checkFixture (testCwd </> "spago.lock") (fixture "git-declared-deps/spago.lock")
+
+      -- Second build: remove .spago cache, lockfile should still defer cloning to fetch phase
+      rmRf (testCwd </> ".spago")
+      result2 <- spago [ "build" ]
+      result2 # shouldBeSuccess
+      let stderr2 = either _.stderr _.stderr result2
+      let downloadingIdx2 = String.indexOf (String.Pattern "Downloading dependencies...") stderr2
+      let cloningIdx2 = String.indexOf (String.Pattern "Cloning") stderr2
+      case downloadingIdx2, cloningIdx2 of
+        Just d, Just c -> d `Assert.shouldSatisfy` \_ -> d < c
+        _, _ -> Assertions.fail $ "Expected 'Downloading dependencies...' before 'Cloning' but got:\n" <> stderr2
+      -- Lockfile should not be regenerated
+      when (isJust $ String.indexOf (String.Pattern "generating it") stderr2) do
+        Assertions.fail $ "Lockfile was regenerated unexpectedly:\n" <> stderr2
+
+      -- Third build (offline): should work because package is cached
+      spago [ "build", "--offline" ] >>= shouldBeSuccess
+
+    Spec.it "must clone during resolution when git package has no declared deps" \{ spago, testCwd, fixture } -> do
+      libRepo <- mkGitRepo testCwd { name: "mylib", deps: [ "prelude" ] }
+      -- Set up consumer project with git dep (no declared deps)
+      FS.mkdirp (testCwd </> "src")
+      FS.writeTextFile (testCwd </> "src/Main.purs") "module Main where\nimport MYLIB.Main\n"
+      -- Use fixture with placeholder replacement (like 1208 test)
+      content <- FS.readTextFile $ fixture "git-declared-deps/without-declared-deps.yaml"
+      FS.writeTextFile (testCwd </> "spago.yaml") $
+        String.replaceAll (String.Pattern "<library-repo-path>") (String.Replacement $ Path.toRaw libRepo) content
+      -- Without declared deps, spago must clone to read spago.yaml from the repo.
+      -- "Cloning" should appear BEFORE "Downloading dependencies..."
+      result <- spago [ "build" ]
+      result # shouldBeSuccess
+      let stderr = either _.stderr _.stderr result
+      let downloadingIdx = String.indexOf (String.Pattern "Downloading dependencies...") stderr
+      let cloningIdx = String.indexOf (String.Pattern "Cloning") stderr
+      case downloadingIdx, cloningIdx of
+        Just d, Just c -> c `Assert.shouldSatisfy` \_ -> c < d
+        _, _ -> Assertions.fail $ "Expected 'Cloning' before 'Downloading dependencies...' but got:\n" <> stderr
+
     Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
@@ -160,7 +233,7 @@ spec = Spec.around withTempDir do
             }
         )
       spago [ "install", "nonexistent-package" ] >>= shouldBeSuccess
-      let slashyPath = testCwd </> Paths.localCachePackagesPath </> "nonexistent-package" </> "spago-test%2fbranch-with-slash"
+      let slashyPath = testCwd </> Paths.localCachePackagesPath </> "nonexistent-package" </> "spago-test%sbranch-with-slash"
       unlessM (FS.exists slashyPath) do
         Assertions.fail $ "Expected path to exist: " <> Path.quote slashyPath
       kids <- FS.ls slashyPath
@@ -262,6 +335,10 @@ spec = Spec.around withTempDir do
       -- Check that the lockfile is back to the original
       checkFixture (testCwd </> "spago.lock") (fixture "spago.lock")
 
+    Spec.it "adds version ranges automatically for solver-based projects" \{ spago, fixture, testCwd } -> do
+      spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
+      spago [ "install", "either" ] >>= shouldBeSuccess
+      checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-solver-ranges.yaml")
 
 insertConfigDependencies :: Config -> Dependencies -> Dependencies -> Config
 insertConfigDependencies config core test =
@@ -302,3 +379,73 @@ writeConfigWithEither root = do
             )
         }
     )
+
+-- | Test that fetchRepo handles git history rewrites (squash) gracefully
+-- This verifies that git pull --rebase works even when the remote history is squashed,
+-- as long as the content is the same. This is important for the registry repo.
+forceResetSpec :: Spec Unit
+forceResetSpec = Spec.around withTempDir do
+  Spec.describe "git fetchRepo" do
+    Spec.it "handles history rewrite (squash) gracefully" \{ testCwd } -> do
+      -- Setup logging
+      startingTime <- liftEffect $ Now.now
+      let logOptions = { color: false, verbosity: LogQuiet, startingTime }
+
+      -- Get git command
+      gitCmd <- runSpago { logOptions } Git.getGit
+
+      -- Build GitEnv
+      let gitEnv = { git: gitCmd, logOptions, offline: Online }
+
+      -- 1. Create a bare "origin" repo
+      let originRepo = testCwd </> "origin"
+      FS.mkdirp originRepo
+      git' (Just $ Path.toGlobal originRepo) [ "init", "--bare" ]
+
+      -- 2. Clone, make commits, push
+      let workRepo = testCwd </> "work"
+      let gitInWorkRepo = git' (Just $ Path.toGlobal workRepo)
+      git [ "clone", Path.toRaw originRepo, Path.toRaw workRepo ]
+      gitInWorkRepo [ "config", "user.name", "test" ]
+      gitInWorkRepo [ "config", "user.email", "test@test.com" ]
+      gitInWorkRepo [ "checkout", "-b", "main" ]
+      FS.writeTextFile (workRepo </> "file1.txt") "content1"
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "first" ]
+      FS.writeTextFile (workRepo </> "file2.txt") "content2"
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "second" ]
+      gitInWorkRepo [ "push", "-u", "origin", "main" ]
+
+      -- 3. Clone again (simulating spago's cached registry)
+      let cachedRepo = testCwd </> "cached"
+      git [ "clone", Path.toRaw originRepo, Path.toRaw cachedRepo ]
+
+      -- 4. Add another commit to origin that modifies an existing file
+      -- Now cached is behind and has different content
+      FS.writeTextFile (workRepo </> "file2.txt") "content2-updated"
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "third" ]
+      gitInWorkRepo [ "push", "origin", "main" ]
+
+      -- 5. Squash all history and force push (simulating registry squash)
+      -- Now origin has: first -> second -> third (with updated file2), squashed to single commit
+      -- But cached only has: first -> second (with original file2)
+      gitInWorkRepo [ "reset", "--soft", "HEAD~2" ]
+      gitInWorkRepo [ "commit", "--amend", "-m", "squashed all history" ]
+      gitInWorkRepo [ "push", "--force", "origin", "main" ]
+
+      -- 6. fetchRepo should succeed despite the history rewrite and different content
+      -- because git pull --rebase can handle rebasing onto a squashed history
+      result <- runSpago gitEnv $ Git.fetchRepo
+        { git: Path.toRaw originRepo, ref: "main" }
+        cachedRepo
+      case result of
+        Left err -> Assert.fail $ "Expected fetchRepo to succeed after history squash, but got: " <> show err
+        Right _ -> pure unit
+
+      -- 7. Verify the content is updated correctly
+      content1 <- FS.readTextFile (cachedRepo </> "file1.txt")
+      content1 `shouldEqualStr` "content1"
+      content2 <- FS.readTextFile (cachedRepo </> "file2.txt")
+      content2 `shouldEqualStr` "content2-updated"

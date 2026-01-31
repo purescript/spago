@@ -6,6 +6,7 @@ module Spago.Command.Init
   , InitOptions
   , defaultConfig
   , defaultConfig'
+  , folderToPackageName
   , pursReplFile
   , run
   , srcMainTemplate
@@ -14,8 +15,10 @@ module Spago.Command.Init
 
 import Spago.Prelude
 
+import Data.Array (mapMaybe)
 import Data.Map as Map
 import Data.String as String
+import Data.String.Utils as StringUtils
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
@@ -106,19 +109,30 @@ run opts = do
   getPackageName :: Spago (InitEnv a) PackageName
   getPackageName = do
     { rootPath } <- ask
+    -- When the user explicitly provides a name, validate it directly and show the actual error.
+    -- When deriving from directory name, use folderToPackageName which sanitizes and gives a generic error.
     let
-      candidateName = case opts.mode of
-        InitWorkspace { packageName: Nothing } -> String.take 150 $ Path.basename rootPath
-        InitWorkspace { packageName: Just n } -> n
-        InitSubpackage { packageName: n } -> n
-    logDebug [ Path.quote rootPath, "\"" <> candidateName <> "\"" ]
-    pname <- case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
-      Left err -> die
-        [ toDoc "Could not figure out a name for the new package. Error:"
-        , Log.break
-        , Log.indent2 $ toDoc err
-        ]
-      Right p -> pure p
+      explicitName = case opts.mode of
+        InitWorkspace { packageName: Just n } -> Just n
+        InitSubpackage { packageName: n } -> Just n
+        InitWorkspace { packageName: Nothing } -> Nothing
+    pname <- case explicitName of
+      Just n -> case PackageName.parse (PackageName.stripPureScriptPrefix n) of
+        Left err -> die
+          [ toDoc "Could not figure out a name for the new package. Error:"
+          , Log.break
+          , Log.indent2 $ toDoc err
+          ]
+        Right p -> pure p
+      Nothing -> do
+        let candidateName = String.take 150 $ Path.basename rootPath
+        case folderToPackageName candidateName of
+          Nothing -> die
+            [ "Could not derive a valid package name from directory " <> Path.quote rootPath <> "."
+            , "Please use --name to specify a package name."
+            ]
+          Just p -> pure p
+    logDebug [ Path.quote rootPath, PackageName.print pname ]
     logDebug [ "Got packageName and setVersion:", PackageName.print pname, unsafeStringify opts.setVersion ]
     pure pname
 
@@ -299,3 +313,59 @@ foundExistingDirectory dir = "Found existing directory " <> Path.quote dir <> ",
 
 foundExistingFile :: LocalPath -> String
 foundExistingFile file = "Found existing file " <> Path.quote file <> ", not overwriting it"
+
+-- SANITIZATION -----------------------------------------------------------------
+
+-- | Convert a folder name to a valid package name.
+-- | We try to convert as much Unicode as possible to ASCII (through NFD normalisation),
+-- | and otherwise strip out and/or replace non-alpanumeric chars with dashes.
+-- | After all this work that is still not enough to guarantee a successful PackageName
+-- | parse, so this is still a Maybe.
+folderToPackageName :: String -> Maybe PackageName
+folderToPackageName input =
+  input
+    # String.toLower
+    -- NFD normalization decomposes accented chars (é → e + combining accent)
+    -- so the base ASCII letter is preserved when we filter non-ASCII later
+    # StringUtils.normalize' StringUtils.NFD
+    # String.toCodePointArray
+    # mapMaybe sanitizeCodePoint
+    # String.fromCodePointArray
+    # collapseConsecutiveDashes
+    # stripLeadingTrailingDashes
+    # PackageName.stripPureScriptPrefix
+    # PackageName.parse
+    # hush
+  where
+  dash = String.codePointFromChar '-'
+
+  -- Transform each codepoint:
+  -- - ASCII lowercase (a-z) and digits (0-9): keep as-is
+  -- - Apostrophes and quotes: remove (shouldn't create word boundaries)
+  -- - Other ASCII: convert to dash (word boundaries)
+  -- - Non-ASCII (combining marks from NFD, etc.): remove
+  sanitizeCodePoint cp
+    | isAsciiLower cp || isAsciiDigit cp = Just cp
+    | isRemovable cp = Nothing
+    | isAscii cp = Just dash
+    | otherwise = Nothing
+
+  isAsciiLower cp = cp >= String.codePointFromChar 'a' && cp <= String.codePointFromChar 'z'
+  isAsciiDigit cp = cp >= String.codePointFromChar '0' && cp <= String.codePointFromChar '9'
+  isAscii cp = cp <= String.codePointFromChar '\x7F'
+  -- ASCII apostrophe and quote shouldn't create word boundaries (Tim's → tims, not tim-s)
+  isRemovable cp = cp == String.codePointFromChar '\'' || cp == String.codePointFromChar '"'
+
+  -- Collapse consecutive dashes into one
+  collapseConsecutiveDashes str =
+    case String.indexOf (String.Pattern "--") str of
+      Nothing -> str
+      Just _ -> collapseConsecutiveDashes $ String.replaceAll (String.Pattern "--") (String.Replacement "-") str
+
+  -- Remove all leading and trailing dashes
+  stripLeadingTrailingDashes str =
+    case String.stripPrefix (String.Pattern "-") str of
+      Just stripped -> stripLeadingTrailingDashes stripped
+      Nothing -> case String.stripSuffix (String.Pattern "-") str of
+        Just stripped -> stripLeadingTrailingDashes stripped
+        Nothing -> str

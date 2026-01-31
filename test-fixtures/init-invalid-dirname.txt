@@ -1,0 +1,2 @@
+✘ Could not derive a valid package name from directory "...".
+Please use --name to specify a package name.

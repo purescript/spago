@@ -3,6 +3,7 @@ module Test.Spago.Config where
 import Test.Prelude
 
 import Codec.JSON.DecodeError as CJ
+import Data.Map as Map
 import Data.String as String
 import Registry.License as License
 import Registry.Location (Location(..))
@@ -34,6 +35,20 @@ spec =
             <> Yaml.stringifyYaml C.configCodec validSpagoYaml.parsed
             <> "\n\n\n-------\nActual:\n-------\n"
             <> Yaml.stringifyYaml C.configCodec parsed
+
+    Spec.it "parses exact version (e.g. '6.0.1') as ExactVersion" do
+      let
+        yaml = """
+          package:
+            name: test
+            dependencies:
+              - prelude: "6.0.1"
+          """
+        parsed = unsafeFromRight $ Yaml.parseYaml C.configCodec yaml
+        C.Dependencies deps = (unsafeFromJust parsed.package).dependencies
+        actual = Map.lookup (mkPackageName "prelude") deps
+        expected = Just (Just (C.ExactVersion (unsafeFromRight $ Version.parse "6.0.1")))
+      actual `Assert.shouldEqual` expected
 
     Spec.it "reports errors" do
       Yaml.parseYaml C.configCodec invalidLicenseYaml `shouldFailWith`

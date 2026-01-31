@@ -1,0 +1,13 @@
+package:
+  name: consumer
+  dependencies:
+    - mylib
+
+workspace:
+  packageSet:
+    registry: 0.0.1
+  extraPackages:
+    mylib:
+      git: <library-repo-path>
+      ref: main
+      # No dependencies declared - spago must clone to read spago.yaml

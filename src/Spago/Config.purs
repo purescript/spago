@@ -7,10 +7,13 @@ module Spago.Config
   , Workspace
   , WorkspaceBuildOptions
   , WorkspacePackage
+  , addConstraintsToConfig
   , addOwner
   , addPackagesToConfig
   , addPublishLocationToConfig
   , addRangesToConfig
+  , addTestConstraintsToConfig
+  , addTestRangesToConfig
   , configDocMissingErrorMessage
   , fileSystemCharEscape
   , getLocalPackageLocation
@@ -89,6 +92,8 @@ type Workspace =
 type WorkspaceBuildOptions =
   { output :: Maybe LocalPath
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+  , censorTestWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
   }
 
@@ -227,6 +232,8 @@ discoverWorkspace options cwd = do
         , buildOptions:
             { output: workspace.config.buildOpts >>= _.output <#> \o -> withForwardSlashes $ rootPath </> o
             , censorLibWarnings: _.censorLibraryWarnings =<< workspace.config.buildOpts
+            , censorProjectWarnings: _.censorProjectWarnings =<< workspace.config.buildOpts
+            , censorTestWarnings: _.censorTestWarnings =<< workspace.config.buildOpts
             , statVerbosity: _.statVerbosity =<< workspace.config.buildOpts
             }
         , doc: Just workspace.doc
@@ -575,8 +582,8 @@ workspacePackageToLockfilePackage { path, package } = Tuple package.name
   { path: case Path.localPart (withForwardSlashes path) of
       "" -> "./"
       p -> p
-  , core: { dependencies: package.dependencies, build_plan: mempty }
-  , test: { dependencies: foldMap _.dependencies package.test, build_plan: mempty }
+  , core: { dependencies: package.dependencies }
+  , test: { dependencies: foldMap _.dependencies package.test }
   }
 
 type LockfileRecomputeResult =
@@ -603,13 +610,12 @@ shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
       ]
   }
   where
-  eraseBuildPlan = _ { core { build_plan = mempty }, test { build_plan = mempty } }
   -- surely this already exists
   explainReason flag reason = if flag then Just reason else Nothing
 
   -- Conditions for recomputing the lockfile:
-  -- 1. the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
-  workspacesDontMatch = (workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= (eraseBuildPlan <$> workspaceLock.packages)
+  -- 1. the workspace packages should exactly match
+  workspacesDontMatch = (workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= workspaceLock.packages
   -- 2. the extra packages should exactly match
   extraPackagesDontMatch = fromMaybe Map.empty workspace.extraPackages /= workspaceLock.extra_packages
   -- 3. the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
@@ -634,18 +640,41 @@ getLocalPackageLocation root name = case _ of
 -- inputs must map to two different outputs _and_ those outputs must differ by
 -- more than just casing.
 --
--- The characters which are most commonly used in version and branch names are
--- those which we allow through as they are (without escaping).
+-- The escape scheme uses:
+-- - `_` followed by lowercase for uppercase letters (A -> _a)
+-- - `_-` for underscore itself
+-- - `%` followed by mnemonic letter for special chars (/ -> %s, \ -> %b, : -> %c)
+-- - `%XX` hex fallback for other chars
 fileSystemCharEscape :: String -> String
 fileSystemCharEscape = String.toCodePointArray >>> map escapeCodePoint >>> Array.fold
   where
-  commonlyUsedChars = map String.codePointFromChar [ '.', ',', '-', '_', '+' ]
-  ignoreEscape = Unicode.isLower || Unicode.isDecDigit || flip Array.elem commonlyUsedChars
+  -- Pass through: lowercase, digits, and safe punctuation (but NOT underscore)
+  safeChars = map String.codePointFromChar [ '.', ',', '-', '+' ]
+  isSafe = Unicode.isLower || Unicode.isDecDigit || flip Array.elem safeChars
 
   escapeCodePoint :: CodePoint -> String
   escapeCodePoint cp
-    | ignoreEscape cp = String.singleton cp
-    | otherwise = append "%" $ Int.toStringAs Int.hexadecimal $ Enum.fromEnum cp
+    | isSafe cp = String.singleton cp
+    | cp == String.codePointFromChar '_' = "_-"
+    | Unicode.isUpper cp = "_" <> String.singleton (Unicode.toLowerSimple cp)
+    | otherwise = escapeSpecial cp
+
+  escapeSpecial :: CodePoint -> String
+  escapeSpecial cp = case String.singleton cp of
+    "/" -> "%s"
+    "\\" -> "%b"
+    ":" -> "%c"
+    "@" -> "%a"
+    "~" -> "%t"
+    "*" -> "%r"
+    "?" -> "%q"
+    "\"" -> "%d"
+    "<" -> "%l"
+    ">" -> "%g"
+    "|" -> "%p"
+    " " -> "%w"
+    "%" -> "%%"
+    _ -> "%" <> Int.toStringAs Int.hexadecimal (Enum.fromEnum cp)
 
 data WithTestGlobs
   = WithTestGlobs
@@ -756,11 +785,36 @@ addPackagesToConfig configPath doc isTest pkgs = do
 removePackagesFromConfig :: YamlDoc Core.Config -> Boolean -> NonEmptySet PackageName -> Effect Unit
 removePackagesFromConfig doc isTest pkgs = runEffectFn3 removePackagesFromConfigImpl doc isTest (flip NonEmptySet.member pkgs)
 
-addRangesToConfig :: YamlDoc Core.Config -> Map PackageName Range -> Effect Unit
-addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
-  <<< Foreign.fromFoldable
+-- | Convert a map of package ranges to the format expected by the FFI
+rangesToForeignObject :: Map PackageName Range -> Foreign.Object String
+rangesToForeignObject = Foreign.fromFoldable
   <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Core.printSpagoRange range))
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
+
+addRangesToConfig :: YamlDoc Core.Config -> Map PackageName Range -> Effect Unit
+addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc <<< rangesToForeignObject
+
+addTestRangesToConfig :: YamlDoc Core.Config -> Map PackageName Range -> Effect Unit
+addTestRangesToConfig doc = runEffectFn2 addTestRangesToConfigImpl doc <<< rangesToForeignObject
+
+-- | Convert a map of version constraints to the format expected by addRangesToConfig.
+-- | Nothing values (bare deps) are filtered out - they stay unchanged in the YAML.
+-- | Just values are printed to strings.
+constraintsToRangesObject :: Map PackageName (Maybe Core.VersionConstraint) -> Foreign.Object String
+constraintsToRangesObject = Foreign.fromFoldable
+  <<< Array.mapMaybe (\(Tuple name maybeConstraint) -> Tuple (PackageName.print name) <$> (printConstraint <$> maybeConstraint))
+  <<< (Map.toUnfoldable :: Map _ _ -> Array _)
+  where
+  printConstraint (Core.ExactVersion v) = Version.print v
+  printConstraint (Core.VersionRange r) = Core.printSpagoRange r
+
+-- | Update constraints in package.dependencies. Nothing values are left unchanged.
+addConstraintsToConfig :: YamlDoc Core.Config -> Map PackageName (Maybe Core.VersionConstraint) -> Effect Unit
+addConstraintsToConfig doc = runEffectFn2 addRangesToConfigImpl doc <<< constraintsToRangesObject
+
+-- | Update constraints in package.test.dependencies. Nothing values are left unchanged.
+addTestConstraintsToConfig :: YamlDoc Core.Config -> Map PackageName (Maybe Core.VersionConstraint) -> Effect Unit
+addTestConstraintsToConfig doc = runEffectFn2 addTestRangesToConfigImpl doc <<< constraintsToRangesObject
 
 configDocMissingErrorMessage :: String
 configDocMissingErrorMessage = Array.fold
@@ -783,6 +837,7 @@ foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Confi
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
 foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
+foreign import addTestRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
 foreign import addPublishLocationToConfigImpl :: EffectFn2 (YamlDoc Core.Config) JSON Unit
 foreign import addOwnerImpl :: EffectFn2 (YamlDoc Core.Config) OwnerJS Unit
 foreign import migrateV1ConfigImpl :: forall a. YamlDoc a -> Nullable (YamlDoc Core.Config)

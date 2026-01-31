@@ -1,0 +1,12 @@
+package:
+  name: package-b
+  dependencies:
+    - package-a
+    - prelude
+  build:
+    strict: true
+    censorProjectWarnings: [] # override workspace setting
+  test:
+    main: Src.PACKAGE.B.Test
+    dependencies: []
+    censorTestWarnings: [] # override workspace setting

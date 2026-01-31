@@ -7,6 +7,7 @@ module Spago.Command.Fetch
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
   , getWorkspacePackageDeps
+  , getWorkspaceTransitiveDeps
   , fetchPackagesToLocalCache
   , run
   , toAllDependencies
@@ -25,6 +26,7 @@ import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
 import Data.Either as Either
 import Data.FunctorWithIndex (mapWithIndex)
+import Data.Profunctor.Strong ((&&&))
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.List as List
@@ -160,12 +162,9 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
 
   local (_ { workspace = workspace }) do
     -- We compute the transitive deps for all the packages in the workspace, but keep them
-    -- split by package - we need all of them so we can stash them in the lockfile, but we
+    -- split by package. We need all of them for the lockfile's workspace entries, but we
     -- are going to only download the ones that we need to, if e.g. there's a package selected
-    dependencies <- traverse getTransitiveDeps
-      $ Map.fromFoldable
-      $ map (\p -> Tuple p.package.name p)
-      $ Config.getWorkspacePackages workspace.packageSet
+    dependencies <- getWorkspaceTransitiveDeps
 
     for_ installingPackagesData \{ configPath, yamlDoc, actualPackagesToInstall } -> do
       let
@@ -176,10 +175,21 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
       doc <- justOrDieWith yamlDoc Config.configDocMissingErrorMessage
       liftAff $ Config.addPackagesToConfig configPath doc isTest actualPackagesToInstall
 
-    -- if the flag is selected, we kick off the process of adding ranges to the config
-    when ensureRanges do
+    -- For solver-based projects, always ensure ranges (they're required for the solver to work)
+    -- For package-set projects, only add ranges if explicitly requested
+    -- Note: we can only add ranges if we have a target package (selected or root)
+    -- If user explicitly passed --ensure-ranges, we should error if there's no target package
+    -- If it's implicitly enabled (solver build), we silently skip when there's no target
+    let
+      isSolverBuild = case currentWorkspace.packageSet.buildType of
+        RegistrySolverBuild _ -> true
+        PackageSetBuild _ _ -> false
+      hasTargetPackage = isJust currentWorkspace.selected || isJust currentWorkspace.rootPackage
+      shouldEnsureRanges = ensureRanges || (isSolverBuild && hasTargetPackage)
+
+    when shouldEnsureRanges do
       { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
-      logInfo $ "Adding ranges to core dependencies to the config in " <> Path.quote configPath
+      logInfo $ "Adding dependency ranges to the config in " <> Path.quote configPath
       packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
         "Impossible: package dependencies must be in dependencies map"
       let rangeMap = map getRangeFromPackage packageDeps.core
@@ -206,14 +216,24 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
           pure $ Map.union supportDeps $ Map.union deps.test deps.core
 
     -- then for every package we have we try to download it, and copy it in the local cache
-    logInfo "Downloading dependencies..."
+    { offline } <- ask
+    logInfo case offline of
+      Offline -> "Checking dependencies..."
+      _ -> "Downloading dependencies..."
     fetchPackagesToLocalCache depsToFetch
 
     -- We return the dependencies, going through the lockfile write if we need to
     -- (we return them from inside there because we need to update the commit hashes)
     case workspace.packageSet.lockfile of
       Right _lockfile -> pure dependencies
-      Left reason -> writeNewLockfile reason dependencies
+      Left reason -> do
+        -- When generating a lockfile, we need ALL git packages to be fetched so we can
+        -- get their commit hashes. If a package is selected, depsToFetch only includes
+        -- that package's deps, but the lockfile needs all packages.
+        let allDeps = toAllDependencies allTransitiveDeps
+        when (Map.keys allDeps /= Map.keys depsToFetch) do
+          fetchPackagesToLocalCache allDeps
+        writeNewLockfile reason dependencies
 
 fetchPackagesToLocalCache :: ∀ a. Map PackageName Package -> Spago (FetchEnv a) Unit
 fetchPackagesToLocalCache packages = do
@@ -427,17 +447,8 @@ writeNewLockfile reason allTransitiveDeps = do
         dependencies <- corePackageDepsOrEmpty packageName package
         pure $ FromPath { path, dependencies }
 
-    -- For every package that is a `WorkspacePackage`, we just pick up all
-    -- transitive core and test dependencies of that package from
-    -- `allTransitiveDeps` and stick them into `core { build_plan }` and
-    -- `test { build_plan }` respectively.
     workspacePackageLockEntries = Map.fromFoldable do
-      name /\ package <- Config.workspacePackageToLockfilePackage <$> Config.getWorkspacePackages workspace.packageSet
-      let deps = allTransitiveDeps # Map.lookup name # fromMaybe { core: Map.empty, test: Map.empty }
-      pure $ name /\ package
-        { core { build_plan = Map.keys deps.core }
-        , test { build_plan = Map.keys deps.test }
-        }
+      Config.workspacePackageToLockfilePackage <$> Config.getWorkspacePackages workspace.packageSet
 
   -- For every non-workspace package, we convert it to its respective type of
   -- lockfile entry via `packageToLockEntry`.
@@ -529,24 +540,40 @@ getGitPackageInLocalCache name package = do
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
 getPackageDependencies packageName package = case package of
   RegistryVersion v -> do
+    -- Check if registry-index exists when offline
+    whenM (asks _.offline <#> eq Offline) do
+      unlessM (FS.exists Paths.registryIndexPath) do
+        die
+          [ "You are offline and the Registry Index is not cached locally."
+          , "Cannot look up dependencies for " <> PackageName.print packageName <> "@" <> Version.print v
+          , "Please connect to the internet and run 'spago install' first."
+          ]
     maybeManifest <- Registry.getManifestFromIndex packageName v
     pure $ maybeManifest <#> \(Manifest m) -> { core: m.dependencies, test: Map.empty }
   GitPackage p -> do
-    -- Note: we get the package in local cache nonetheless,
-    -- so we have guarantees about being able to fetch it
-    { rootPath } <- ask
-    let packageLocation = Config.getLocalPackageLocation rootPath packageName package
-    unlessM (FS.exists packageLocation) do
-      getGitPackageInLocalCache packageName p
     case p.dependencies of
-      Just (Dependencies dependencies) ->
-        pure $ Just { core: map (fromMaybe Config.widestRange) dependencies, test: Map.empty }
+      -- if dependencies are declared, we can use them directly without cloning.
+      -- the package will be fetched later in fetchPackagesToLocalCache.
+      Just (Dependencies dependencies) -> do
+        -- when offline, verify the package is cached before proceeding
+        { offline, rootPath } <- ask
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName (GitPackage p)
+        when (offline == Offline) do
+          unlessM (FS.exists packageLocation) do
+            die $ "Package '" <> PackageName.print packageName <> "' is not in the local cache, and Spago is running in offline mode - can't make progress."
+        pure $ Just { core: map Config.constraintToRange dependencies, test: Map.empty }
+      -- if the dependencies are not declared, then we need to clone the repo
+      -- to look at the package manifest inside
       Nothing -> do
+        { rootPath } <- ask
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName package
+        unlessM (FS.exists packageLocation) do
+          getGitPackageInLocalCache packageName p
         readLocalDependencies $ Path.toGlobal $ maybe packageLocation (packageLocation </> _) p.subdir
   LocalPackage p -> do
     readLocalDependencies $ Path.global p.path
   WorkspacePackage p ->
-    pure $ Just $ (map (fromMaybe Config.widestRange) <<< unwrap) `onEachEnv` getWorkspacePackageDeps p
+    pure $ Just $ (map Config.constraintToRange <<< unwrap) `onEachEnv` getWorkspacePackageDeps p
   where
   -- try to see if the package has a spago config, and if it's there we read it
   readLocalDependencies :: GlobalPath -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
@@ -555,8 +582,8 @@ getPackageDependencies packageName package = case package of
     Config.readConfig (configLocation </> "spago.yaml") >>= case _ of
       Right { yaml: { package: Just { dependencies: Dependencies deps, test } } } ->
         pure $ Just
-          { core: fromMaybe Config.widestRange <$> deps
-          , test: fromMaybe Config.widestRange <$> (test <#> _.dependencies <#> unwrap # fromMaybe Map.empty)
+          { core: Config.constraintToRange <$> deps
+          , test: Config.constraintToRange <$> (test <#> _.dependencies <#> unwrap # fromMaybe Map.empty)
           }
       Right _ -> die
         [ "Read the configuration at path " <> Path.quote configLocation
@@ -585,6 +612,17 @@ type TransitiveDepsResult =
       }
   }
 
+-- | Compute transitive dependencies for all workspace packages.
+-- | This is used by multiple commands (fetch, uninstall) that need
+-- | to gather transitive deps for the entire workspace.
+getWorkspaceTransitiveDeps :: forall a. Spago (FetchEnv a) PackageTransitiveDeps
+getWorkspaceTransitiveDeps = do
+  { workspace } <- ask
+  traverse getTransitiveDeps
+    $ Map.fromFoldable
+    $ map (\p -> Tuple p.package.name p)
+    $ Config.getWorkspacePackages workspace.packageSet
+
 -- | For a given workspace package, returns a list of all its transitive
 -- | dependencies, but seperately for core and test.
 -- |
@@ -603,30 +641,62 @@ type TransitiveDepsResult =
 -- | workspace is using.
 getTransitiveDeps :: forall a. Config.WorkspacePackage -> Spago (FetchEnv a) (ByEnv PackageMap)
 getTransitiveDeps workspacePackage = do
-  let depsRanges = (map (fromMaybe Config.widestRange) <<< unwrap) `onEachEnv` getWorkspacePackageDeps workspacePackage
+  let depsRanges = (map Config.constraintToRange <<< unwrap) `onEachEnv` getWorkspacePackageDeps workspacePackage
   { workspace } <- ask
   case workspace.packageSet.lockfile of
-    -- If we have a lockfile we can just use that - we don't need build a plan, since we store it for every workspace
-    -- package, so we can just filter out the packages we need.
+    -- If we have a lockfile we can compute transitive deps from the lockfile data
     Right lockfile -> do
       case Map.lookup workspacePackage.package.name lockfile.workspace.packages of
         Nothing ->
           die $ "Package " <> PackageName.print workspacePackage.package.name <> " not found in lockfile"
         Just envs ->
           pure
-            { core: fromBuildPlan envs.core.build_plan
-            , test: fromBuildPlan envs.test.build_plan
+            { core: computeTransitiveDeps envs.core.dependencies
+            , test: computeTransitiveDeps envs.test.dependencies
             }
           where
-          fromBuildPlan bp = Map.union otherPackages workspacePackagesWeNeed
+          -- Note: this transitive closure logic is the same as the one that happens
+          -- in the Left branch, where we compute the package-set-based plan with
+          -- getTransitiveDepsFromPackageSet.
+          -- We could try to extract the overall logic from there, but we have instead
+          -- reimplemented it here since it's a pure traversal with no IO (since we
+          -- fetch dependencies as we compute the plan there), nor error handling
+          -- (cycles, missing packages), since all dependencies data in the lockfile
+          -- is pre-computed and known to be correct.
+          allWorkspacePackages = Map.fromFoldable $ (_.package.name &&& WorkspacePackage) <$> Config.getWorkspacePackages workspace.packageSet
+
+          -- Get direct dependencies of a package from the lockfile
+          getDeps :: PackageName -> Set PackageName
+          getDeps name = case Map.lookup name lockfile.workspace.packages of
+            Just pkg -> Set.fromFoldable $ Map.keys $ unwrap pkg.core.dependencies
+            Nothing -> Set.fromFoldable $ case Map.lookup name lockfile.packages of
+              Just (FromPath { dependencies }) -> dependencies
+              Just (FromGit { dependencies }) -> dependencies
+              Just (FromRegistry { dependencies }) -> dependencies
+              Nothing -> []
+
+          transitiveClosure :: Set PackageName -> Set PackageName
+          transitiveClosure initial = go initial initial
             where
-            allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
+            go seen new
+              | Set.isEmpty new = seen
+              | otherwise =
+                  let
+                    discovered = foldMap getDeps new `Set.difference` seen
+                  in
+                    go (seen <> discovered) discovered
 
-            isInBuildPlan :: forall v. PackageName -> v -> Boolean
-            isInBuildPlan name _package = Set.member name bp
+          computeTransitiveDeps :: Dependencies -> PackageMap
+          computeTransitiveDeps deps =
+            let
+              transitiveDeps = transitiveClosure $ Set.fromFoldable $ Map.keys $ unwrap deps
 
-            workspacePackagesWeNeed = Map.filterWithKey isInBuildPlan allWorkspacePackages
-            otherPackages = map fromLockEntry $ Map.filterWithKey isInBuildPlan lockfile.packages
+              isInTransitiveDeps :: forall v. PackageName -> v -> Boolean
+              isInTransitiveDeps name _ = Set.member name transitiveDeps
+            in
+              Map.union
+                (Map.filterWithKey isInTransitiveDeps allWorkspacePackages)
+                (map fromLockEntry $ Map.filterWithKey isInTransitiveDeps lockfile.packages)
 
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
     Left _ -> case workspace.packageSet.buildType of

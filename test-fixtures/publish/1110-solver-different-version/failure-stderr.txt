@@ -2,11 +2,11 @@ Reading Spago workspace configuration...
 
 ✓ Selecting package to build: aaa
 
-Downloading dependencies...
+Checking dependencies...
 Building...
-[1 of 3] Compiling Effect.Console
-[3 of 3] Compiling Lib
-[2 of 3] Compiling Effect.Class.Console
+[x of 3] Compiling module-name
+[x of 3] Compiling module-name
+[x of 3] Compiling module-name
            Src   Lib   All
 Warnings     0     0     0
 Errors       0     0     0
@@ -17,7 +17,7 @@ Passed preliminary checks.
 ‼ Spago is in offline mode - not pushing the git tag v0.0.1
 Building again with the build plan from the solver...
 Building...
-[1 of 3] Compiling Effect.Console
+[x of 3] Compiling module-name
 [ERROR 1/1 MissingFFIModule] .spago/p/console-6.1.0/src/Effect/Console.purs:1:1
 
       v
