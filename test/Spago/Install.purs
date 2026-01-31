@@ -80,13 +80,13 @@ spec = Spec.around withTempDir do
                 }
             )
             ( Dependencies $ Map.fromFoldable
-                [ Tuple (mkPackageName "prelude") (Just $ mkRange ">=6.0.0 <7.0.0")
-                , Tuple (mkPackageName "lists") (Just $ mkRange ">=1000.0.0 <1000.0.1")
+                [ Tuple (mkPackageName "prelude") (Just $ Config.VersionRange $ mkRange ">=6.0.0 <7.0.0")
+                , Tuple (mkPackageName "lists") (Just $ Config.VersionRange $ mkRange ">=1000.0.0 <1000.0.1")
                 ]
             )
             ( Dependencies $ Map.fromFoldable
-                [ Tuple (mkPackageName "spec") (Just $ mkRange ">=7.0.0 <8.0.0")
-                , Tuple (mkPackageName "maybe") (Just $ mkRange ">=1000.0.0 <1000.0.1")
+                [ Tuple (mkPackageName "spec") (Just $ Config.VersionRange $ mkRange ">=7.0.0 <8.0.0")
+                , Tuple (mkPackageName "maybe") (Just $ Config.VersionRange $ mkRange ">=1000.0.0 <1000.0.1")
                 ]
             )
 

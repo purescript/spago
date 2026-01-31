@@ -18,10 +18,12 @@ module Spago.Core.Config
   , SetAddress(..)
   , StatVerbosity(..)
   , TestConfig
+  , VersionConstraint(..)
   , WarningCensorTest(..)
   , WorkspaceBuildOptionsInput
   , WorkspaceConfig
   , configCodec
+  , constraintToRange
   , dependenciesCodec
   , extraPackageCodec
   , gitPackageCodec
@@ -263,7 +265,18 @@ parseBundleType = case _ of
 bundleTypeCodec :: CJ.Codec BundleType
 bundleTypeCodec = CJ.Sum.enumSum show (parseBundleType)
 
-newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
+-- | Version constraint for a dependency - either an exact version or a range
+data VersionConstraint
+  = ExactVersion Version
+  | VersionRange Range
+
+derive instance Eq VersionConstraint
+
+instance Show VersionConstraint where
+  show (ExactVersion v) = show $ Version.print v
+  show (VersionRange r) = show $ Range.print r
+
+newtype Dependencies = Dependencies (Map PackageName (Maybe VersionConstraint))
 
 derive instance Eq Dependencies
 derive instance Newtype Dependencies _
@@ -272,38 +285,48 @@ instance Semigroup Dependencies where
   append (Dependencies d1) (Dependencies d2) = Dependencies $ Map.unionWith
     ( case _, _ of
         Nothing, Nothing -> Nothing
-        Just r, Nothing -> Just r
-        Nothing, Just r -> Just r
-        Just r1, Just r2 -> Range.intersect r1 r2
+        Just c, Nothing -> Just c
+        Nothing, Just c -> Just c
+        Just c1, Just c2 -> constraintIntersect c1 c2
     )
     d1
     d2
+    where
+    constraintIntersect c1 c2 = Range.intersect (constraintToRange' c1) (constraintToRange' c2) <#> VersionRange
+    constraintToRange' (ExactVersion v) = Range.exact v
+    constraintToRange' (VersionRange r) = r
 
 instance Monoid Dependencies where
   mempty = Dependencies (Map.empty)
 
+-- | Convert a version constraint to a range (for solver compatibility)
+constraintToRange :: Maybe VersionConstraint -> Range
+constraintToRange Nothing = widestRange
+constraintToRange (Just (ExactVersion v)) = Range.exact v
+constraintToRange (Just (VersionRange r)) = r
+
 dependenciesCodec :: CJ.Codec Dependencies
 dependenciesCodec = Profunctor.dimap to from $ CJ.array dependencyCodec
   where
-  packageSingletonCodec = Reg.Internal.Codec.packageMap spagoRangeCodec
+  packageSingletonCodec = Reg.Internal.Codec.packageMap versionConstraintCodec
 
-  to :: Dependencies -> Array (Either PackageName (Map PackageName Range))
+  to :: Dependencies -> Array (Either PackageName (Map PackageName VersionConstraint))
   to (Dependencies deps) =
     map
-      ( \(Tuple name maybeRange) -> case maybeRange of
+      ( \(Tuple name maybeConstraint) -> case maybeConstraint of
           Nothing -> Left name
-          Just r -> Right (Map.singleton name r)
+          Just c -> Right (Map.singleton name c)
       )
       $ Map.toUnfoldable deps :: Array _
 
-  from :: Array (Either PackageName (Map PackageName Range)) -> Dependencies
+  from :: Array (Either PackageName (Map PackageName VersionConstraint)) -> Dependencies
   from = Dependencies <<< Map.fromFoldable <<< map
     ( case _ of
         Left name -> Tuple name Nothing
         Right m -> rmap Just $ unsafeFromJust (List.head (Map.toUnfoldable m))
     )
 
-  dependencyCodec :: CJ.Codec (Either PackageName (Map PackageName Range))
+  dependencyCodec :: CJ.Codec (Either PackageName (Map PackageName VersionConstraint))
   dependencyCodec = Codec.codec' decode encode
     where
     encode = case _ of
@@ -318,16 +341,21 @@ widestRange :: Range
 widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
   $ Range.parse ">=0.0.0 <2147483647.0.0"
 
-spagoRangeCodec :: CJ.Codec Range
-spagoRangeCodec = CJ.prismaticCodec "SpagoRange" rangeParse printSpagoRange CJ.string
+versionConstraintCodec :: CJ.Codec VersionConstraint
+versionConstraintCodec = CJ.prismaticCodec "VersionConstraint" constraintParse printConstraint CJ.string
   where
-  rangeParse str =
-    if str == "*" then Just widestRange
-    -- First try parsing as a range (e.g. ">=1.0.0 <2.0.0")
+  constraintParse str =
+    -- First check for widest range
+    if str == "*" then Just (VersionRange widestRange)
+    -- Then try parsing as a range (e.g. ">=1.0.0 <2.0.0")
     else case hush $ Range.parse str of
-      Just range -> Just range
-      -- Then try parsing as an exact version (e.g. "1.0.0" -> ">=1.0.0 <1.0.1")
-      Nothing -> Range.exact <$> hush (Version.parse str)
+      Just range -> Just (VersionRange range)
+      -- Finally try parsing as an exact version (e.g. "1.0.0")
+      Nothing -> ExactVersion <$> hush (Version.parse str)
+
+  printConstraint = case _ of
+    ExactVersion v -> Version.print v
+    VersionRange r -> printSpagoRange r
 
 printSpagoRange :: Range -> String
 printSpagoRange range =

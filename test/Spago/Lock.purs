@@ -7,7 +7,7 @@ import Data.Map as Map
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
-import Spago.Core.Config (Dependencies(..), ExtraPackage(..), RemotePackage(..), SetAddress(..))
+import Spago.Core.Config (Dependencies(..), ExtraPackage(..), RemotePackage(..), SetAddress(..), VersionConstraint(..))
 import Spago.Core.Config as Config
 import Spago.Core.Config as Core
 import Spago.FS as FS
@@ -40,7 +40,7 @@ validLockfile =
           [ packageTuple "my-app"
               { core:
                   { dependencies: Dependencies $ Map.fromFoldable
-                      [ packageTuple "effect" (Just (unsafeFromRight (Range.parse ">=1.0.0 <5.0.0")))
+                      [ packageTuple "effect" (Just (VersionRange (unsafeFromRight (Range.parse ">=1.0.0 <5.0.0"))))
                       , packageTuple "my-library" Nothing
                       ]
                   }
@@ -54,7 +54,7 @@ validLockfile =
                   { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "prelude" Nothing ]
                   }
               , test:
-                  { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just Config.widestRange) ]
+                  { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just (VersionRange Config.widestRange)) ]
                   }
               , path: "my-library"
               }

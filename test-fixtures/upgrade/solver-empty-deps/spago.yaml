@@ -1,0 +1,6 @@
+package:
+  name: empty-deps
+  dependencies: []
+
+workspace:
+  extraPackages: {}

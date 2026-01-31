@@ -189,6 +189,7 @@ type PublishArgs =
 
 type UpgradeArgs =
   { setVersion :: Maybe String
+  , selectedPackage :: Maybe String
   }
 
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
@@ -374,6 +375,7 @@ runArgsParser = Optparse.fromRecord
 upgradeArgsParser :: Parser UpgradeArgs
 upgradeArgsParser = Optparse.fromRecord
   { setVersion: Flags.maybeSetVersion
+  , selectedPackage: Flags.selectedPackage
   }
 
 testArgsParser :: Parser TestArgs
@@ -688,7 +690,7 @@ main = do
             runSpago docsEnv Docs.run
           Upgrade args -> do
             setVersion <- parseSetVersion args.setVersion
-            { env } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
+            { env } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
             runSpago env (Upgrade.run { setVersion })
           Auth args -> do
             { env } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
