@@ -128,6 +128,7 @@ Where to go from here? There are a few places you should check out:
   - [Override a package in the package set with a remote one](#override-a-package-in-the-package-set-with-a-remote-one)
   - [Add a package to the package set](#add-a-package-to-the-package-set)
   - [Querying package sets](#querying-package-sets)
+  - [Querying package information](#querying-package-information)
   - [Upgrading packages and the package set](#upgrading-packages-and-the-package-set)
   - [Custom package sets](#custom-package-sets)
   - [Graph the project modules and dependencies](#graph-the-project-modules-and-dependencies)
@@ -619,6 +620,57 @@ $ spago registry package-sets --latest
 | 29.1.0  | 2023-07-18 | 0.15.9   |
 | 42.1.0  | 2023-09-26 | 0.15.10  |
 +---------+------------+----------+
+```
+
+You can also list all the packages contained in a specific package set by providing the set version as an argument:
+
+```console
+$ spago registry package-sets 0.0.1
++------------------------------+---------+
+| PACKAGE                      | VERSION |
++------------------------------+---------+
+| ace                          | 9.0.0   |
+| aff                          | 7.1.0   |
+| aff-bus                      | 6.0.0   |
+...
+```
+
+This is useful to check what version of a package is included in a specific set, or to explore the contents of an older set. The `--json` flag is available for machine-friendly output.
+
+### Querying package information
+
+To get detailed information about a package from the Registry, use `spago registry info`:
+
+```console
+$ spago registry info aff
+```
+
+This will print the package metadata (location, published versions, etc.) as YAML, followed by a table showing which package sets contain each published version of the package:
+
+```
+location:
+  githubOwner: purescript-contrib
+  githubRepo: purescript-aff
+published:
+  7.1.0:
+    bytes: 44616
+    hash: sha256-...
+    publishedTime: 2022-05-12T16:39:07.000Z
+    ref: v7.1.0
+...
+
+Package Sets containing each version:
++---------+-------------------------------+
+| VERSION | PACKAGE SETS                  |
++---------+-------------------------------+
+| 7.1.0   | 0.0.1, 0.0.2, 0.1.0, ...      |
++---------+-------------------------------+
+```
+
+Use the `--json` flag to get the output in JSON format, which includes both the metadata and the package sets information in a structured format:
+
+```console
+$ spago registry info aff --json
 ```
 
 ### Upgrading packages and the package set
