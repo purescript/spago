@@ -284,7 +284,7 @@ fetchPackagesToLocalCache packages = do
                   , "  (" <> Sha256.print expectedIntegrity <> ")"
                   , "than in the registry metadata"
                   , "  (" <> Sha256.print versionMetadata.hash <> ")."
-                  , "This shouldn't really happen, so please open an issue at https://github.com/purescript/spago/issues"
+                  , "This shouldn't really happen, see here for further details: https://github.com/purescript/spago/pull/1360"
                   ]
               _ -> pure unit
             -- then check if we have a tarball cached. If not, download it
