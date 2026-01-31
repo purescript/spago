@@ -6,21 +6,10 @@
         "core": {
           "dependencies": [
             "either"
-          ],
-          "build_plan": [
-            "control",
-            "either",
-            "invariant",
-            "maybe",
-            "newtype",
-            "prelude",
-            "safe-coerce",
-            "unsafe-coerce"
           ]
         },
         "test": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         }
       }
     },

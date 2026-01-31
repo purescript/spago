@@ -1,6 +1,6 @@
 # spago
 
-[![NPM Version (with dist tag)](https://img.shields.io/npm/v/spago/next)](https://www.npmjs.com/package/spago/v/next)
+[![NPM Version](https://img.shields.io/npm/v/spago)](https://www.npmjs.com/package/spago)
 ![Latest release](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpurescript%2Fspago%2Frefs%2Fheads%2Fmaster%2Fspago.yaml&query=package.publish.version&prefix=v&label=release)
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![nix-flake](https://github.com/purescript/spago/actions/workflows/nix-flake.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/nix-flake.yml)
@@ -19,14 +19,11 @@ PureScript package manager and build tool.
 > [!IMPORTANT]\
 > This documentation concerns the new PureScript rewrite of Spago. If you are looking for the Haskell codebase (versions up to 0.21.x), please head over to the [spago-legacy] repo.
 
-> [!WARNING]\
-> This new Spago is still in alpha, so while most of it works well, there will be some rough edges here and there. Please report them if you find any!
-
 The recommended installation method for Windows, Linux and macOS is `npm` (see the latest releases on npm
 [here][spago-npm]):
 
 ```
-npm install -g spago@next
+npm install -g spago
 ```
 
 Other installation methods available:
@@ -37,10 +34,6 @@ Other installation methods available:
 
 - The assumption is that you already installed the [PureScript compiler][purescript].
   If not, get it with `npm install -g purescript`, or the recommended method for your OS.
-- You might have issues with `npm` and Docker (e.g. getting the message "Downloading the spago binary failed.." etc)
-  You have two options:
-  - either **do not run npm as root**, because it doesn't work well with binaries. Use it as a nonprivileged user.
-  - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago@next`
 
 ## Super quick tutorial
 
@@ -147,6 +140,7 @@ Where to go from here? There are a few places you should check out:
   - [Authenticated commands](#authenticated-commands)
     - [Transfer my package to a new owner](#transfer-my-package-to-a-new-owner)
   - [Know which `purs` commands are run under the hood](#know-which-purs-commands-are-run-under-the-hood)
+  - [Force a registry refresh](#force-a-registry-refresh)
   - [Install autocompletions for `bash`](#install-autocompletions-for-bash)
   - [Install autocompletions for `zsh`](#install-autocompletions-for-zsh)
 - [Concepts and explanations](#concepts-and-explanations)
@@ -203,7 +197,7 @@ npm install -g spago-legacy
 spago-legacy migrate
 
 # Ready to remove the dhall files and move to the new spago
-npm install -g spago@next
+npm install -g spago
 rm spago.dhall packages.dhall
 ```
 
@@ -1399,7 +1393,7 @@ workspace:
       # Value 1: "all" - All warnings are censored
       all
 
-      # Value 2: `NonEmptyArray (Either String { byPrefix :: String })`
+      # Value 2: `Array (Either String { byPrefix :: String })`
       # - String values:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
@@ -1410,6 +1404,16 @@ workspace:
       # see https://yaml-multiline.info/
       - byPrefix: >
           Data.Map's `Semigroup` instance
+
+    # Specify whether to censor warnings coming from the compiler
+    # for files in workspace project source
+    # Optional - takes the same values as censorLibraryWarnings above
+    censorProjectWarnings: all
+
+    # Specify whether to censor warnings coming from the compiler
+    # for files in workspace project tests
+    # Optional - takes the same values as censorLibraryWarnings above
+    censorTestWarnings: all
 
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.

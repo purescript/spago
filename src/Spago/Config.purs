@@ -92,6 +92,8 @@ type Workspace =
 type WorkspaceBuildOptions =
   { output :: Maybe LocalPath
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+  , censorTestWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
   }
 
@@ -230,6 +232,8 @@ discoverWorkspace options cwd = do
         , buildOptions:
             { output: workspace.config.buildOpts >>= _.output <#> \o -> withForwardSlashes $ rootPath </> o
             , censorLibWarnings: _.censorLibraryWarnings =<< workspace.config.buildOpts
+            , censorProjectWarnings: _.censorProjectWarnings =<< workspace.config.buildOpts
+            , censorTestWarnings: _.censorTestWarnings =<< workspace.config.buildOpts
             , statVerbosity: _.statVerbosity =<< workspace.config.buildOpts
             }
         , doc: Just workspace.doc
@@ -578,8 +582,8 @@ workspacePackageToLockfilePackage { path, package } = Tuple package.name
   { path: case Path.localPart (withForwardSlashes path) of
       "" -> "./"
       p -> p
-  , core: { dependencies: package.dependencies, build_plan: mempty }
-  , test: { dependencies: foldMap _.dependencies package.test, build_plan: mempty }
+  , core: { dependencies: package.dependencies }
+  , test: { dependencies: foldMap _.dependencies package.test }
   }
 
 type LockfileRecomputeResult =
@@ -606,13 +610,12 @@ shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
       ]
   }
   where
-  eraseBuildPlan = _ { core { build_plan = mempty }, test { build_plan = mempty } }
   -- surely this already exists
   explainReason flag reason = if flag then Just reason else Nothing
 
   -- Conditions for recomputing the lockfile:
-  -- 1. the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
-  workspacesDontMatch = (workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= (eraseBuildPlan <$> workspaceLock.packages)
+  -- 1. the workspace packages should exactly match
+  workspacesDontMatch = (workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= workspaceLock.packages
   -- 2. the extra packages should exactly match
   extraPackagesDontMatch = fromMaybe Map.empty workspace.extraPackages /= workspaceLock.extra_packages
   -- 3. the package set address needs to match - we have no way to match the package set contents at this point, so we let it be

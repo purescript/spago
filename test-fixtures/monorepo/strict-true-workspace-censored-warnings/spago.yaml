@@ -1,0 +1,7 @@
+workspace:
+  buildOpts:
+    censorProjectWarnings: all
+    censorTestWarnings: all
+  packageSet:
+    registry: 0.0.1
+  extraPackages: {}
