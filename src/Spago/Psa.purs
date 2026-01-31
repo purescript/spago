@@ -13,7 +13,6 @@ import Control.Alternative as Alternative
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
-import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.JSON as CJ
 import Data.Either (blush)
 import Data.Map as Map
@@ -106,12 +105,14 @@ toPathDecisions
      , selectedPackages :: Array WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
      , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+     , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+     , censorTestWarnings :: Maybe Core.CensorBuildWarnings
      }
   -> Array (Effect (Array (LocalPath -> Maybe PathDecision)))
-toPathDecisions { rootPath, allDependencies, selectedPackages, psaCliFlags, censorLibWarnings } =
+toPathDecisions { rootPath, allDependencies, selectedPackages, psaCliFlags, censorLibWarnings, censorProjectWarnings, censorTestWarnings } =
   projectDecisions <> dependencyDecisions
   where
-  projectDecisions = selectedPackages <#> \selected -> toWorkspacePackagePathDecision { selected, psaCliFlags }
+  projectDecisions = selectedPackages <#> \selected -> toWorkspacePackagePathDecision { selected, psaCliFlags, censorProjectWarnings, censorTestWarnings }
 
   dependencyDecisions =
     map toDependencyDecision
@@ -129,6 +130,8 @@ toPathDecisions { rootPath, allDependencies, selectedPackages, psaCliFlags, cens
       toWorkspacePackagePathDecision
         { selected: p
         , psaCliFlags
+        , censorProjectWarnings
+        , censorTestWarnings
         }
     _ -> do
       let pkgLocation = Tuple.uncurry (Config.getLocalPackageLocation rootPath) dep
@@ -144,9 +147,11 @@ toPathDecisions { rootPath, allDependencies, selectedPackages, psaCliFlags, cens
 toWorkspacePackagePathDecision
   :: { selected :: WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
+     , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+     , censorTestWarnings :: Maybe Core.CensorBuildWarnings
      }
   -> Effect (Array (LocalPath -> Maybe PathDecision))
-toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
+toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags, censorProjectWarnings, censorTestWarnings } = do
   let srcPath = path </> "src"
   let testPath = path </> "test"
   pure
@@ -154,13 +159,13 @@ toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
         { pathIsFromPackage: (srcPath `Path.isPrefixOf` _)
         , pathType: IsSrc
         , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
-        , censorWarnings: package.build >>= _.censorProjectWarnings
+        , censorWarnings: (package.build >>= _.censorProjectWarnings) <|> censorProjectWarnings
         }
     , toPathDecision
         { pathIsFromPackage: (testPath `Path.isPrefixOf` _)
         , pathType: IsSrc
         , strict: fromMaybe false $ psaCliFlags.strict <|> (package.test >>= _.strict)
-        , censorWarnings: package.test >>= _.censorTestWarnings
+        , censorWarnings: (package.test >>= _.censorTestWarnings) <|> censorTestWarnings
         }
     ]
 
@@ -203,7 +208,7 @@ shouldPrintWarning = case _ of
       -- We return `true` to print the warning.
       -- If an element was found (i.e. `Just` is returned), then one of the tests succeeded,
       -- so we should not print the warning and return false here.
-      \code msg -> isNothing $ NonEmptyArray.find (\f -> f code msg) tests
+      \code msg -> isNothing $ Array.find (\f -> f code msg) tests
 
 -- | Strip the preamble that the PureScript compiler adds to UserDefinedWarning messages.
 -- | This allows byPrefix to match just the user-defined content.
