@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-01-30
+## [1.0.3] - 2026-02-01
+
+Bugfixes:
+* Remove ExperimentalWarning from Spago's own bundle
+
+## [1.0.2] - 2026-02-01
 
 Initial stable release of the PureScript rewrite.
 
