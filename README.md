@@ -1,7 +1,7 @@
 # spago
 
 [![NPM Version](https://img.shields.io/npm/v/spago)](https://www.npmjs.com/package/spago)
-![Latest release](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpurescript%2Fspago%2Frefs%2Fheads%2Fmaster%2Fspago.yaml&query=package.publish.version&prefix=v&label=release)
+[![License](https://img.shields.io/github/license/purescript/spago)](https://github.com/purescript/spago/blob/master/LICENSE)
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![nix-flake](https://github.com/purescript/spago/actions/workflows/nix-flake.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/nix-flake.yml)
 [![Maintainer: f-f](https://img.shields.io/badge/maintainer-f%2d-f-teal.svg)](http://github.com/f-f)

@@ -107,6 +107,43 @@ an issue, whichever you prefer.
 I hand out the commit bit freely because mistakes are easy to fix or roll back.
 Learn by doing and get your hands dirty!
 
+## Releasing
+
+Releases are cut from the `master` branch using the `release.sh` script.
+
+### Pre-release checklist
+
+1. Ensure all changes are merged to `master`
+2. Update `CHANGELOG.md`: move items from `[Unreleased]` to a new version section
+3. Verify tests pass: `spago test`
+4. Verify the build works: `spago build`
+
+### Cutting a release
+
+```bash
+./release.sh <version>
+```
+
+Examples:
+```bash
+./release.sh 1.0.0    # explicit version
+./release.sh patch    # bump patch (e.g., 1.0.0 -> 1.0.1)
+./release.sh minor    # bump minor (e.g., 1.0.0 -> 1.1.0)
+```
+
+The script will:
+1. Verify you're on `master` with a clean working tree
+2. Pull the latest changes
+3. Bump the version in `package.json` and sync it to `spago.yaml` files
+4. Commit and create a git tag
+5. Push to origin
+
+### What happens next
+
+CI (`.github/workflows/release.yml`) automatically:
+1. Builds and tests the project
+2. Creates a GitHub Release
+3. Publishes to npm
 
 [f-f]: https://github.com/f-f
 [discord]: https://purescript.org/chat
