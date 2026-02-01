@@ -5,6 +5,11 @@ on:
     tags:
       - '*'
 
+# see https://docs.npmjs.com/trusted-publishers
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 jobs:
   build-and-publish:
     name: Build and publish to npm
@@ -20,7 +25,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
       - name: Cache NPM dependencies
@@ -71,5 +76,3 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
