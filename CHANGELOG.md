@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+* Preserve TTY properties for child processes in `spago run` (#1341)
+
 ## [1.0.3] - 2026-02-01
 
 Bugfixes:

@@ -92,7 +92,12 @@ getNode = do
 run :: forall a. Spago (RunEnv a) Unit
 run = do
   { workspace, node, runOptions: opts, dependencies, selected, rootPath } <- ask
-  let execOptions = Cmd.defaultExecOptions { pipeStdin = Cmd.StdinPipeParent }
+  let
+    execOptions = Cmd.defaultExecOptions
+      { pipeStdin = Cmd.StdinPipeParent
+      , stdoutMode = Cmd.StdioInherit -- Preserve TTY properties for child process
+      , stderrMode = Cmd.StdioInherit -- Preserve TTY properties for child process
+      }
 
   case workspace.backend of
     Nothing -> do
