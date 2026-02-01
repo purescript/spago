@@ -56,7 +56,7 @@ jobs:
             ${{ runner.os }}-
 
       - name: Install global NPM packages
-        run: npm i --global purescript@0.15.15 spago@next purs-tidy@latest esbuild@latest
+        run: npm i --global purescript@0.15.15 spago@latest purs-tidy@latest esbuild@latest
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v4
