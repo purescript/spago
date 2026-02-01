@@ -20,7 +20,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -62,17 +62,12 @@ jobs:
       - name: Run tests
         run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
-          body: |
-            See [CHANGELOG.md](https://github.com/purescript/spago/blob/master/CHANGELOG.md) for details.
           draft: false
           prerelease: false
+          make_latest: true
 
       - name: Publish to npm
         run: npm publish --access public
