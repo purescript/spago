@@ -8,7 +8,7 @@ on:
 # see https://docs.npmjs.com/trusted-publishers
 permissions:
   id-token: write  # Required for OIDC
-  contents: read
+  contents: write  # Required for release creation
 
 jobs:
   build-and-publish:
