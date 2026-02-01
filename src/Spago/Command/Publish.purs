@@ -167,6 +167,7 @@ publish _args = do
               , unpublished: Map.empty
               }
         let
+          expectedTag = "v" <> Version.print publishConfig.version
           manifest =
             { name
             , location
@@ -177,6 +178,7 @@ publish _args = do
             , owners: NEA.fromArray =<< publishConfig.owners
             , excludeFiles: Nothing -- TODO specify files in spago config
             , includeFiles: Nothing -- TODO specify files in spago config
+            , ref: expectedTag
             }
 
         unless (Operation.Validation.locationMatches (Manifest manifest) (Metadata metadata)) $ addError $ toDoc
@@ -264,9 +266,6 @@ publish _args = do
             , printJson Metadata.unpublishedMetadataCodec info
             , "```"
             ]
-
-          -- Get the current ref
-          let expectedTag = "v" <> Version.print publishConfig.version
 
           -- These are "soft" git tag checks. We notify the user of errors
           -- they need to fix. But these commands must not have the user
@@ -380,7 +379,16 @@ publish _args = do
       logDebug $ unsafeStringify publishingData
       logSuccess "Ready for publishing. Calling the registry.."
 
-      let newPublishingData = publishingData { resolutions = Just publishingData.resolutions } :: Operation.PublishData
+      let
+        newPublishingData :: Operation.PublishData
+        newPublishingData =
+          { name: publishingData.name
+          , location: publishingData.location
+          , ref: publishingData.ref
+          , version: expectedVersion
+          , compiler: Just publishingData.compiler
+          , resolutions: Just publishingData.resolutions
+          }
       Registry.submitRegistryOperation (Operation.Publish newPublishingData)
       pure newPublishingData
   where

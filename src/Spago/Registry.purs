@@ -474,28 +474,30 @@ waitForJobFinish { jobId, jobType } = go Nothing
                 _ -> Just V1.Info
             }
         )
-    jobInfo :: V1.Job <- callRegistry url V1.jobCodec Nothing
+    job :: V1.Job <- callRegistry url V1.jobCodec Nothing
+    let jobData = V1.jobInfo job
     -- first of all, print all the logs we get
-    for_ jobInfo.logs \log -> do
+    for_ jobData.logs \log -> do
       let line = indent $ toDoc $ DateTime.format Internal.Format.iso8601DateTime log.timestamp <> " " <> log.message
       case log.level of
         V1.Debug -> logDebug line
         V1.Info -> logInfo line
+        V1.Notice -> logInfo line
         V1.Warn -> logWarn line
         V1.Error -> logError line
-    case jobInfo.finishedAt of
+    case jobData.finishedAt of
       Nothing -> do
         -- If the job is not finished, we grab the timestamp of the last log line, wait a bit and retry
         let
-          latestTimestamp = jobInfo.logs # Array.last # case _ of
+          latestTimestamp = jobData.logs # Array.last # case _ of
             Just log -> Just log.timestamp
             Nothing -> lastTimestamp
         liftAff $ Aff.delay $ Milliseconds 500.0
         go latestTimestamp
       Just _finishedAt -> do
         -- if it's done we report the failure.
-        logDebug $ "Job: " <> printJson V1.jobCodec jobInfo
-        case jobInfo.success of
+        logDebug $ "Job: " <> printJson V1.jobCodec job
+        case jobData.success of
           false -> die $ toDoc
             [ "Registry finished processing the package, but it failed."
             , "If this was due to the package not meeting the requirements, you can find more info in the logs above, and try again."
