@@ -29,7 +29,7 @@
   ],
   "main": "bin/bundle.js",
   "scripts": {
-    "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago,core/spago}.yaml",
+    "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago,core/spago}.yaml && git add {spago,bin/spago,core/spago}.yaml",
     "format": "purs-tidy format-in-place core src bin docs-search",
     "format:check": "purs-tidy check core src bin docs-search",
     "bundle": "spago bundle -p spago-bin",
