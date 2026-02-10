@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Bugfixes:
 * Preserve TTY properties for child processes in `spago run` (#1341)
+* Do not repeatedly request the same log line from the Registry server (#1381)
 
 ## [1.0.3] - 2026-02-01
 
