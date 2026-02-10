@@ -21,7 +21,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.JSON as CJ
 import Data.DateTime (DateTime)
-import Data.DateTime (diff) as DateTime
+import Data.DateTime (adjust, diff) as DateTime
 import Data.Formatter.DateTime (format) as DateTime
 import Data.Map as Map
 import Data.Set as Set
@@ -468,7 +468,7 @@ waitForJobFinish { jobId, jobType } = go Nothing
     let
       url = baseApi <> Duplex.print V1.routes
         ( V1.Job jobId
-            { since: lastTimestamp
+            { since: lastTimestamp >>= DateTime.adjust (Milliseconds 1.0)
             , level: case logOptions.verbosity of
                 LogVerbose -> Just V1.Debug
                 _ -> Just V1.Info
