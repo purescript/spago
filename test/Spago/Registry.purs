@@ -35,3 +35,28 @@ spec = Spec.around withTempDir do
               # String.joinWith "\n"
           }
       shouldBeSuccessOutput (fixture "registry-list-package-sets-latest.txt") $ bimap updateStdout updateStdout result
+
+    Spec.it "query package sets and package info with set associations" \{ spago, fixture } -> do
+      -- Test: List packages in a specific package set (table output)
+      do
+        result <- spago [ "registry", "package-sets", "0.0.1" ]
+        let
+          updateStdout r = r
+            { stdout = r.stdout
+                # String.split (Pattern "\n")
+                # Array.take 50
+                # String.joinWith "\n"
+            }
+        shouldBeSuccessOutput (fixture "registry-package-set-0.0.1.txt") $ bimap updateStdout updateStdout result
+
+      -- Test: List packages in a specific package set (JSON output)
+      spago [ "registry", "package-sets", "0.0.1", "--json" ] >>= shouldBeSuccess
+
+      -- Test: Error for non-existent package set version
+      spago [ "registry", "package-sets", "999.999.999" ] >>= shouldBeFailure
+
+      -- Test: Info command shows package sets for versions (text output)
+      spago [ "registry", "info", "prelude" ] >>= shouldBeSuccess
+
+      -- Test: Info command with JSON includes package sets
+      spago [ "registry", "info", "prelude", "--json" ] >>= shouldBeSuccess
