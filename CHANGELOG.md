@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Bugfixes:
 * Preserve TTY properties for child processes in `spago run` (#1341)
 * Do not repeatedly request the same log line from the Registry server (#1381)
+* Fix solver failing for local packages in `extraPackages` with version constraints (#1338)
+  - Solver now widens ranges for non-registry extra packages so they are always accepted
+  - Warns when a local package's `publish.version` doesn't match the declared constraint
 
 ## [1.0.3] - 2026-02-01
 
