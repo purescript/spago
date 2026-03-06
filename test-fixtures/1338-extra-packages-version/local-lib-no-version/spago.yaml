@@ -1,0 +1,5 @@
+package:
+  name: local-lib-no-version
+  dependencies: []
+
+workspace: {}

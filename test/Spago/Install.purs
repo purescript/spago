@@ -23,7 +23,7 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 import Test.Spec.Assertions as Assertions
-import Test.Spec.Assertions.String (shouldContain)
+import Test.Spec.Assertions.String (shouldContain, shouldNotContain)
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
@@ -339,6 +339,20 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
       spago [ "install", "either" ] >>= shouldBeSuccess
       checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-solver-ranges.yaml")
+
+  Spec.it "widens solver ranges for non-registry extra packages (#1338)" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "1338-extra-packages-version", dst: testCwd }
+      Paths.chdir $ testCwd </> "consumer"
+      -- Three local extra packages in one workspace:
+      --   local-lib-match: version 1.0.0, constraint >=1.0.0 <2.0.0 (satisfies, no warning)
+      --   local-lib-mismatch: version 1.0.0, constraint >=2.0.0 <3.0.0 (warns, still builds)
+      --   local-lib-no-version: no publish.version, constraint >=5.0.0 <6.0.0 (widened, no warning)
+      result <- spago [ "build" ]
+      result # shouldBeSuccess
+      let stderr = either _.stderr _.stderr result
+      stderr `shouldContain` "Extra package local-lib-mismatch has version 1.0.0, which doesn't satisfy constraint >=2.0.0 <3.0.0"
+      stderr `shouldNotContain` "local-lib-match"
+      stderr `shouldNotContain` "local-lib-no-version"
 
 insertConfigDependencies :: Config -> Dependencies -> Dependencies -> Config
 insertConfigDependencies config core test =
