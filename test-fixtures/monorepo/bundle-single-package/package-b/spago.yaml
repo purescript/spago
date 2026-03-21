@@ -1,0 +1,6 @@
+package:
+  name: package-b
+  dependencies:
+    - effect
+    - ordered-collections
+    - prelude
