@@ -6,6 +6,7 @@ import Data.Array as Array
 import Data.String as Str
 import Spago.Command.Bundle (checkWatermarkMarkerFileName)
 import Spago.FS as FS
+import Spago.Path as Path
 import Spago.Generated.BuildInfo as BuildInfo
 import Test.Spec (Spec)
 import Test.Spec as Spec
@@ -78,6 +79,10 @@ spec = Spec.around withTempDir do
       FS.writeTextFile (testCwd </> "index.js") "Bogus"
       spago [ "bundle" ] >>= shouldBeSuccess
       checkBundle (testCwd </> "index.js") (fixture "bundle-default.js")
+
+    Spec.it "bundles a single package in a monorepo without building the whole workspace" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/bundle-single-package", dst: Path.toGlobal testCwd }
+      spago [ "bundle", "-p", "package-a", "--bundle-type", "app", "--outfile", "out.js", "--pure" ] >>= shouldBeSuccess
 
     Spec.it "checks that main is declared and exported when bundling app" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "test-package" ] >>= shouldBeSuccess
