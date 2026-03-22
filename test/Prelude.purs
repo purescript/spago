@@ -50,6 +50,7 @@ type TestDirs =
 -- | Uses OS mkdtemp (not timestamp hashing) and resolves symlinks (macOS /tmp -> /private/tmp).
 mkTempRoot :: Aff RootPath
 mkTempRoot = do
+  FS.mkdirp Paths.paths.temp
   let prefix = Path.toRaw Paths.paths.temp <> "/spago-test-"
   temp' <- liftEffect $ FS.Sync.mkdtemp prefix
   resolved <- liftEffect $ FS.Sync.realpath temp'
