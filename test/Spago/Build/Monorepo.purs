@@ -8,10 +8,8 @@ import Data.String as String
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags as Regex.Flags
 import Effect.Aff (bracket)
-import Spago.Cmd as Cmd
 import Spago.FS as FS
 import Spago.Path as Path
-import Spago.Paths as Paths
 import Test.Spec (SpecT)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -271,21 +269,20 @@ spec = Spec.describe "monorepo" do
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "monorepo/pedantic-cross-package-imports/expected-stderr.txt")
 
-  Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \testArgs@{ spago, fixture } -> do
+  Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \testArgs@{ fixture } -> do
     -- A local file system Git repo to use as a remote for Spago to clone from
     let
       createLibraryRepo = do
-        let libRepo = Paths.paths.temp </> "spago-1208"
-        whenM (FS.exists libRepo) $ rmRf libRepo
+        let libRepo = testArgs.testCwd </> "library-remote"
         FS.copyTree { src: fixture "monorepo/1208-no-double-cloning/library", dst: libRepo }
-        git_ libRepo [ "init" ]
-        git_ libRepo [ "add", "." ]
-        git_ libRepo [ "config", "--global", "core.longpaths", "true" ]
-        git_ libRepo [ "config", "user.name", "test-user" ]
-        git_ libRepo [ "config", "user.email", "test-user@aol.com" ]
-        git_ libRepo [ "commit", "-m", "Initial commit" ]
-        git_ libRepo [ "tag", "v1" ]
-        git_ libRepo [ "tag", "v2" ]
+        git libRepo [ "init" ]
+        git libRepo [ "add", "." ]
+        git libRepo [ "config", "core.longpaths", "true" ]
+        git libRepo [ "config", "user.name", "test-user" ]
+        git libRepo [ "config", "user.email", "test-user@aol.com" ]
+        git libRepo [ "commit", "-m", "Initial commit" ]
+        git libRepo [ "tag", "v1" ]
+        git libRepo [ "tag", "v2" ]
         pure libRepo
 
     bracket createLibraryRepo rmRf \libRepo -> do
@@ -293,10 +290,8 @@ spec = Spec.describe "monorepo" do
         consumerDir = testArgs.testCwd </> "consumer"
         libRepoStr = Path.toRaw libRepo
         recreateConsumerWorkspace = do
-          Paths.chdir testArgs.testCwd
           whenM (FS.exists consumerDir) $ rmRf consumerDir
           FS.mkdirp consumerDir
-          Paths.chdir consumerDir
           copySpagoYaml "spago-two-deps.yaml"
 
         copySpagoYaml src = do
@@ -308,13 +303,13 @@ spec = Spec.describe "monorepo" do
         assertRefCheckedOut package ref = do
           -- The `.spago/p/<package>/<ref>` should be a git repo checked out at `ref`
           let path = consumerDir </> ".spago" </> "p" </> package </> ref
-          commitHash <- git path [ "rev-parse", ref ]
-          git path [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
+          commitHash <- gitWithOutput path [ "rev-parse", ref ]
+          gitWithOutput path [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
 
           -- And there should be a copy of that repo at
           -- `.spago/p/<package>/<SHA>`, checked out at the same commit.
           let commitHashPath = consumerDir </> ".spago" </> "p" </> package </> commitHash
-          git commitHashPath [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
+          gitWithOutput commitHashPath [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
 
         shouldBeSuccessErr' = checkOutputsWithPatchErr isRight
         shouldBeFailureErr' = checkOutputsWithPatchErr isLeft
@@ -325,22 +320,23 @@ spec = Spec.describe "monorepo" do
             , stderrFile: Just $ fixture expectedFixture
             , result
             , sanitize:
-                String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+                sanitizePlatformOutput
                   >>> String.replaceAll (String.Pattern libRepoStr) (String.Replacement "<library-repo-path>")
                   >>> Regex.replace (unsafeFromRight $ Regex.regex "^purs compile: .*$" (Regex.Flags.global <> Regex.Flags.multiline)) "purs compile..."
-                  >>> String.trim
             }
 
       -- First run `spago install` to make sure global cache is populated,
       -- otherwise it may or may not appear in Spago's output and then we can't
       -- reliably compare it to golden output.
+      let spagoConsumer = testArgs.spagoIn consumerDir
+
       recreateConsumerWorkspace
-      spago [ "ls", "packages", "-v" ] >>= shouldBeSuccess
+      spagoConsumer [ "ls", "packages", "-v" ] >>= shouldBeSuccess
 
       -- Nuke the cache after that so Spago can re-clone the repositories and we
       -- can check that it's happening only once.
       recreateConsumerWorkspace
-      spago [ "ls", "packages" ] >>=
+      spagoConsumer [ "ls", "packages" ] >>=
         shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/two-deps.txt"
 
       -- Check that every package has the right ref checked out, as specified in
@@ -351,18 +347,18 @@ spec = Spec.describe "monorepo" do
       -- Add lib3 to the config and check that Spago refuses to clone/pull
       -- from the repo in offline more.
       copySpagoYaml "spago-three-deps.yaml"
-      spago [ "ls", "packages", "--offline" ] >>=
+      spagoConsumer [ "ls", "packages", "--offline" ] >>=
         shouldBeFailureErr' "monorepo/1208-no-double-cloning/expected-stderr/three-deps-offline.txt"
 
       -- Create new tags that lib3 and lib4 are pointing to
-      git_ libRepo [ "tag", "v3" ]
-      git_ libRepo [ "tag", "v4" ]
+      git libRepo [ "tag", "v3" ]
+      git libRepo [ "tag", "v4" ]
 
       -- Now that the remote repo has tags v3 and v4 defined, try again in
       -- online mode and see that the repo is not cloned a second time, but
       -- still pulled because the v3 tag is not in Spago's cache.
       copySpagoYaml "spago-three-deps.yaml"
-      spago [ "ls", "packages" ] >>=
+      spagoConsumer [ "ls", "packages" ] >>=
         shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/three-deps.txt"
       assertRefCheckedOut "lib3" "v3"
 
@@ -370,22 +366,12 @@ spec = Spec.describe "monorepo" do
       -- pulled, but can be used in offline mode, because the v4 tag is already
       -- in Spago's cache.
       copySpagoYaml "spago-four-deps.yaml"
-      spago [ "ls", "packages", "--offline" ] >>=
+      spagoConsumer [ "ls", "packages", "--offline" ] >>=
         shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/four-deps.txt"
       assertRefCheckedOut "lib4" "v4"
 
       -- Lockfile test: when it's up to date but the cache is not populated (i.e. a fresh clone)
       -- then there are no double clones. This is a regression test for #1206
-      spago [ "build" ] >>= shouldBeSuccess
+      spagoConsumer [ "build" ] >>= shouldBeSuccess
       rmRf $ consumerDir </> ".spago"
-      spago [ "build" ] >>= shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/lockfile-up-to-date.txt"
-
-  where
-  git_ cwd = void <<< git cwd
-
-  git :: ∀ path. Path.IsPath path => path -> _
-  git cwd args = do
-    let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just $ Path.toGlobal cwd }
-    res <- Cmd.exec (Path.global "git") args opts
-    res # shouldBeSuccess
-    pure $ Cmd.getStdout res
+      spagoConsumer [ "build" ] >>= shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/lockfile-up-to-date.txt"

@@ -15,11 +15,12 @@ import Test.Spec as Spec
 
 spec :: Spec Unit
 spec = Spec.describe "unit" do
-  FindFlags.spec
-  CheckInjectivity.spec
-  Init.spec
-  Printer.spec
-  Git.spec
-  Path.spec
-  NodeVersion.spec
-  Run.spec
+  Spec.parallel do
+    FindFlags.spec
+    CheckInjectivity.spec
+    Init.spec
+    Printer.spec
+    Git.spec
+    Path.spec
+    NodeVersion.spec
+    Run.spec

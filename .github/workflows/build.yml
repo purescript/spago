@@ -81,6 +81,13 @@ jobs:
       - name: Bundle docs-search client
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
+      - name: Exclude workspace from Windows Defender
+        if: runner.os == 'Windows'
+        run: |
+          Add-MpPreference -ExclusionPath "${{ github.workspace }}"
+          Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\Temp"
+        shell: pwsh
+
       - name: Run tests
         run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 

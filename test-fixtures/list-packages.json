@@ -6,10 +6,10 @@
       "package": {
         "name": "aaa",
         "dependencies": [
-          "aaa2",
           "console",
           "effect",
-          "prelude"
+          "prelude",
+          "subpackage"
         ],
         "test": {
           "main": "Test.Main",
@@ -17,25 +17,6 @@
         }
       },
       "path": "./"
-    }
-  },
-  "aaa2": {
-    "type": "workspace",
-    "value": {
-      "hasTests": true,
-      "package": {
-        "name": "aaa2",
-        "dependencies": [
-          "console",
-          "effect",
-          "prelude"
-        ],
-        "test": {
-          "main": "Subpackage.Test.Main",
-          "dependencies": []
-        }
-      },
-      "path": "subpackage"
     }
   },
   "abc-parser": {
@@ -2208,6 +2189,25 @@
     "type": "registry",
     "value": {
       "version": "0.0.12"
+    }
+  },
+  "subpackage": {
+    "type": "workspace",
+    "value": {
+      "hasTests": true,
+      "package": {
+        "name": "subpackage",
+        "dependencies": [
+          "console",
+          "effect",
+          "prelude"
+        ],
+        "test": {
+          "main": "Subpackage.Test.Main",
+          "dependencies": []
+        }
+      },
+      "path": "subpackage"
     }
   },
   "substitute": {

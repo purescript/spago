@@ -29,23 +29,23 @@ spec = Spec.around withTempDir do
     Spec.it "fails if the package has never been published before" \{ spago, fixture, testCwd } -> do
       FS.copyFile { src: fixture "publish/basic.yaml", dst: testCwd </> "spago.yaml" }
       spago [ "auth", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "registry", "transfer", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/never-published.txt")
 
     Spec.it "fails if the new repo location is the same as the current one in the registry" \{ spago, fixture, testCwd } -> do
       FS.copyFile { src: fixture "publish/transfer/aff.yaml", dst: testCwd </> "spago.yaml" }
       spago [ "auth", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "registry", "transfer", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/same-location.txt")
 
     Spec.it "fails if can't find the private key" \{ spago, fixture, testCwd } -> do
       FS.copyFile { src: fixture "publish/transfer/aff-new-location.yaml", dst: testCwd </> "spago.yaml" }
       spago [ "auth", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "registry", "transfer", "-i", (Path.toRaw $ fixture "publish/no-key") ] >>= shouldBeFailureErr (fixture "publish/transfer/no-key.txt")
 
     Spec.it "fails if running with --offline" \{ spago, fixture, testCwd } -> do
       FS.copyFile { src: fixture "publish/transfer/aff-new-location.yaml", dst: testCwd </> "spago.yaml" }
       spago [ "auth", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "registry", "transfer", "--offline", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/offline.txt")
