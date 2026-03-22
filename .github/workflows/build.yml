@@ -81,14 +81,17 @@ jobs:
       - name: Bundle docs-search client
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
-      - name: Exclude workspace from Windows Defender
+      - name: Setup Dev Drive for tests
         if: runner.os == 'Windows'
-        run: |
-          Add-MpPreference -ExclusionPath "${{ github.workspace }}"
-          Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\Temp"
-        shell: pwsh
+        uses: samypr100/setup-dev-drive@v3
+        with:
+          workspace-copy: true
+          env-mapping: |
+            TEMP,{{ DEV_DRIVE }}/tmp
+            TMP,{{ DEV_DRIVE }}/tmp
 
       - name: Run tests
+        working-directory: ${{ runner.os == 'Windows' && env.DEV_DRIVE_WORKSPACE || '.' }}
         run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 
       - name: Check formatting (Linux only)
