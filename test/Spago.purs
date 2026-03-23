@@ -32,38 +32,44 @@ import Test.Spec.Reporter as Spec.Reporter
 import Test.Spec.Runner.Node (runSpecAndExitProcess')
 import Test.Spec.Runner.Node.Config as Cfg
 
-testConfig :: Cfg.TestRunConfig
-testConfig = Cfg.defaultConfig
-  { timeout = Just (Milliseconds 120_000.0)
-  }
-
 main :: Effect Unit
-main = do
-  config <- Cfg.fromCommandLine' testConfig Cfg.commandLineOptionParsers
-  runSpecAndExitProcess' config [ Spec.Reporter.consoleReporter ] do
-    Spec.describe "spago" do
-      -- TODO: script
-      Cli.spec
-      Init.spec
-      Sources.spec
-      Install.spec
-      Uninstall.spec
-      Ls.spec
-      Build.spec
-      Repl.spec
-      Run.spec
-      Test.spec
-      Bundle.spec
-      Registry.spec
-      Docs.spec
-      Upgrade.spec
-      Publish.spec
-      Transfer.spec
-      Graph.spec
-      Spec.describe "miscellaneous" do
-        Lock.spec
-        Unit.spec
+main =
+  runSpecAndExitProcess'
+    { defaultConfig: Cfg.defaultConfig { timeout = Just (Milliseconds 120_000.0) }
+    , parseCLIOptions: true
+    }
+    [ Spec.Reporter.consoleReporter ]
+    do
+      Spec.describe "spago" do
+        -- A few of the test suites are hard to parallelise.
+        -- E.g. the build one runs so many instances of the compiler that they easily
+        -- segfault, which makes the tests unreliable.
+        -- Or e.g. some of these remove the global cache, which would definitely mess up
+        -- other tests running in parallel to it.
+        -- So we run these problematic suites first, sequentially, before running the
+        -- rest of the suites with parallelism.
+        Build.lockfileSpec
+        Build.spec
+        Publish.spec
+        Transfer.spec
         Glob.spec
-        Errors.spec
-        Config.spec
-        Install.forceResetSpec
+
+        Spec.parallel $ Cli.spec
+        Spec.parallel $ Init.spec
+        Spec.parallel $ Sources.spec
+        Spec.parallel $ Install.spec
+        Spec.parallel $ Uninstall.spec
+        Spec.parallel $ Ls.spec
+        Spec.parallel $ Repl.spec
+        Spec.parallel $ Run.spec
+        Spec.parallel $ Test.spec
+        Spec.parallel $ Bundle.spec
+        Spec.parallel $ Registry.spec
+        Spec.parallel $ Docs.spec
+        Spec.parallel $ Upgrade.spec
+        Spec.parallel $ Graph.spec
+        Spec.parallel $ Lock.spec
+        Spec.parallel $ Unit.spec
+        Spec.parallel $ Errors.spec
+        Spec.parallel $ Config.spec
+        Spec.parallel $ Install.forceResetSpec

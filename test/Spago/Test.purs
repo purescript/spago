@@ -12,7 +12,6 @@ import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Path as Path
-import Spago.Paths as Paths
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -26,12 +25,12 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "test" ] >>= shouldBeSuccessOutputWithErr (fixture "test-output-stdout.txt") (fixture "test-output-stderr.txt")
 
-    Spec.it "tests successfully when using a different output dir" \{ spago, fixture } -> do
+    Spec.it "tests successfully when using a different output dir" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "7368613235362d6a336156536c675a7033334e7659556c6d38" ] >>= shouldBeSuccess
 
-      let tempDir = Path.toRaw $ Paths.paths.temp </> "output"
-      spago [ "build", "--output", tempDir ] >>= shouldBeSuccess
-      spago [ "test", "--output", tempDir ] >>= shouldBeSuccessOutputWithErr (fixture "test-output-stdout.txt") (fixture "test-output-stderr.txt")
+      let customOutput = Path.toRaw $ testCwd </> "custom-output"
+      spago [ "build", "--output", customOutput ] >>= shouldBeSuccess
+      spago [ "test", "--output", customOutput ] >>= shouldBeSuccessOutputWithErr (fixture "test-output-stdout.txt") (fixture "test-output-stderr.txt")
 
     Spec.it "fails nicely when the test module is not found" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "7368613235362d6a336156536c675a7033334e7659556c6d38" ] >>= shouldBeSuccess
@@ -40,19 +39,8 @@ spec = Spec.around withTempDir do
       spago [ "test" ] >>= shouldBeFailureErr (fixture "test-missing-module.txt")
 
     Spec.it "runs tests from a sub-package" \{ spago, testCwd } -> do
-      let subpackage = testCwd </> "subpackage"
       spago [ "init" ] >>= shouldBeSuccess
-      FS.mkdirp (subpackage </> "src")
-      FS.mkdirp (subpackage </> "test")
-      FS.writeTextFile (subpackage </> "src/Main.purs") (Init.srcMainTemplate "Subpackage.Main")
-      FS.writeTextFile (subpackage </> "test/Main.purs") (Init.testMainTemplate "Subpackage.Test.Main")
-      FS.writeYamlFile Config.configCodec (subpackage </> "spago.yaml")
-        ( Init.defaultConfig
-            { name: mkPackageName "subpackage"
-            , withWorkspace: Nothing
-            , testModuleName: "Subpackage.Test.Main"
-            }
-        )
+      _ <- makeSubpackage testCwd { name: "subpackage", moduleName: "Subpackage" }
       spago [ "test", "-p", "subpackage" ] >>= shouldBeSuccess
 
     Spec.it "runs tests from a sub-package in the current working directory, not the sub-package's directory" \{ spago, fixture, testCwd } -> do

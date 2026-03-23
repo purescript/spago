@@ -1,23 +1,4 @@
 {
-  "aaa2": {
-    "type": "workspace",
-    "value": {
-      "hasTests": true,
-      "package": {
-        "name": "aaa2",
-        "dependencies": [
-          "console",
-          "effect",
-          "prelude"
-        ],
-        "test": {
-          "main": "Subpackage.Test.Main",
-          "dependencies": []
-        }
-      },
-      "path": "subpackage"
-    }
-  },
   "console": {
     "type": "registry",
     "value": {
@@ -34,6 +15,25 @@
     "type": "registry",
     "value": {
       "version": "6.0.2"
+    }
+  },
+  "subpackage": {
+    "type": "workspace",
+    "value": {
+      "hasTests": true,
+      "package": {
+        "name": "subpackage",
+        "dependencies": [
+          "console",
+          "effect",
+          "prelude"
+        ],
+        "test": {
+          "main": "Subpackage.Test.Main",
+          "dependencies": []
+        }
+      },
+      "path": "subpackage"
     }
   }
 }

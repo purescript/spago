@@ -12,7 +12,6 @@ import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Log (LogVerbosity(..))
-import Spago.Path as Path
 import Spago.Purs (getPurs)
 import Test.Spec (SpecT)
 import Test.Spec as Spec
@@ -59,45 +58,42 @@ spec =
         packageName = "foo"
         srcAndTestContent = pursModuleUsingBuildInfo [ packageName ]
 
-        setupSinglePackage spago = do
+        setupSinglePackage spago testCwd = do
           spago [ "init", "--name", packageName ] >>= shouldBeSuccess
-          FS.writeTextFile (Path.global "src/Main.purs") $ writeMain srcAndTestContent
-          FS.writeTextFile (Path.global "test/Test/Main.purs") $ writeTestMain srcAndTestContent
+          FS.writeTextFile (testCwd </> "src" </> "Main.purs") $ writeMain srcAndTestContent
+          FS.writeTextFile (testCwd </> "test" </> "Test" </> "Main.purs") $ writeTestMain srcAndTestContent
 
-      Spec.it ("'spago build' works") \{ spago } -> do
-        setupSinglePackage spago
+      Spec.it "build/run/test commands work with and without -p" \{ spago, testCwd } -> do
+        setupSinglePackage spago testCwd
+        expected <- mkExpectedStdout { spago, rest: [ "foo: 0.0.0" ] }
 
+        -- 'spago build' works
         spago [ "build" ] >>= shouldBeSuccess
 
-      Spec.it ("'spago build -p' works") \{ spago } -> do
-        setupSinglePackage spago
-
+        -- 'spago build -p' works
         spago [ "build", "-p", packageName ] >>= shouldBeSuccess
 
-      let
-        runAndTestCommands = do
-          command <- [ "run", "test" ]
-          selected <- [ false, true ]
-          pure case selected of
-            false -> [ command ]
-            true -> [ command, "-p", packageName ]
-
-      for_ runAndTestCommands \command -> do
-        Spec.it ("'spago " <> Array.intercalate " " command <> " works") \{ spago } -> do
-          setupSinglePackage spago
-          expected <- mkExpectedStdout { spago, rest: [ "foo: 0.0.0" ] }
+        -- 'spago run' and 'spago test' work with and without -p
+        let
+          runAndTestCommands = do
+            command <- [ "run", "test" ]
+            selected <- [ false, true ]
+            pure case selected of
+              false -> [ command ]
+              true -> [ command, "-p", packageName ]
+        for_ runAndTestCommands \command -> do
           spago command >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 
     Spec.describe "using generated 'BuildInfo.purs' file in multi-package context" do
 
       let
         packages = [ "foo", "bar", "baz" ]
-        setupPolyrepo = do
-          FS.writeYamlFile Config.configCodec (Path.global "spago.yaml")
+        setupPolyrepo testCwd = do
+          FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
             $ Init.defaultConfig'
             $ WorkspaceOnly { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
           for_ packages \packageName -> do
-            let package = Path.global packageName
+            let package = testCwd </> packageName
             FS.mkdirp package
             FS.writeYamlFile Config.configCodec (package </> "spago.yaml")
               $ mkPackageOnlyConfig { packageName, srcDependencies: [ "prelude", "effect", "console" ] }
@@ -118,25 +114,26 @@ spec =
               , rest: fileContent
               }
 
-      Spec.it ("'spago build' works") \{ spago } -> do
-        setupPolyrepo
+      Spec.it ("'spago build' works") \{ spago, testCwd } -> do
+        setupPolyrepo testCwd
         spago [ "build" ] >>= shouldBeSuccess
 
-      Spec.before_ setupPolyrepo do
+      let packagesWithVersion = (\p -> p <> ": 0.0.0") <$> packages
 
-        let packagesWithVersion = (\p -> p <> ": 0.0.0") <$> packages
+      for_ packages \package -> do
+        let
+          srcMain = mkSrcModuleName package
+        Spec.it ("'spago build -p " <> package <> "' works") \{ spago, testCwd } -> do
+          setupPolyrepo testCwd
+          spago [ "build", "-p", package ] >>= shouldBeSuccess
 
-        for_ packages \package -> do
-          let
-            srcMain = mkSrcModuleName package
-          Spec.it ("'spago build -p " <> package <> "' works") \{ spago } -> do
-            spago [ "build", "-p", package ] >>= shouldBeSuccess
+        Spec.it ("'spago run -p " <> package <> " --main " <> srcMain <> "' works") \{ spago, testCwd } -> do
+          setupPolyrepo testCwd
+          expected <- mkExpectedStdout { spago, rest: packagesWithVersion }
+          spago [ "run", "-p", package, "--main", srcMain ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 
-          Spec.it ("'spago run -p " <> package <> " --main " <> srcMain <> "' works") \{ spago } -> do
-            expected <- mkExpectedStdout { spago, rest: packagesWithVersion }
-            spago [ "run", "-p", package, "--main", srcMain ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
-
-          Spec.it ("'spago test -p " <> package <> "' works") \{ spago } -> do
-            expected <- mkExpectedStdout { spago, rest: packagesWithVersion }
-            spago [ "test", "-p", package ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
+        Spec.it ("'spago test -p " <> package <> "' works") \{ spago, testCwd } -> do
+          setupPolyrepo testCwd
+          expected <- mkExpectedStdout { spago, rest: packagesWithVersion }
+          spago [ "test", "-p", package ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 
