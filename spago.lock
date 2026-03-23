@@ -1004,6 +1004,10 @@
           "ordered-collections",
           "prelude"
         ]
+      },
+      "spec": {
+        "git": "https://github.com/purescript-spec/purescript-spec.git",
+        "ref": "8b667df33a6fc11c50a6c0feb820fb5bba259ff7"
       }
     }
   },
@@ -1348,6 +1352,15 @@
         "partial",
         "prelude",
         "tuples"
+      ]
+    },
+    "debug": {
+      "type": "registry",
+      "version": "6.0.2",
+      "integrity": "sha256-d/EzRm/J2JyzvlIeo2Ex78Y7HRB0IXBitnVJywL4gHk=",
+      "dependencies": [
+        "functions",
+        "prelude"
       ]
     },
     "distributive": {
@@ -2832,9 +2845,9 @@
       ]
     },
     "spec": {
-      "type": "registry",
-      "version": "8.1.1",
-      "integrity": "sha256-b6qjDb7lUJGLV+WEoywLu6BCXC4zGpfbN43mTL+vBeI=",
+      "type": "git",
+      "url": "https://github.com/purescript-spec/purescript-spec.git",
+      "rev": "8b667df33a6fc11c50a6c0feb820fb5bba259ff7",
       "dependencies": [
         "aff",
         "ansi",
@@ -2843,6 +2856,7 @@
         "bifunctors",
         "control",
         "datetime",
+        "debug",
         "effect",
         "either",
         "exceptions",

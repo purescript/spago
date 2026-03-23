@@ -162,4 +162,7 @@ workspace:
       git: https://github.com/klntsky/purescript-search-trie.git
       ref: e7f7f22486a1dba22171ec885dbc2149dc815119
     json-codecs: 4.0.0
+    spec:
+      git: https://github.com/purescript-spec/purescript-spec.git
+      ref: 8b667df33a6fc11c50a6c0feb820fb5bba259ff7
 
