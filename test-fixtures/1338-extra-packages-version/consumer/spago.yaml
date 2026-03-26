@@ -1,0 +1,15 @@
+package:
+  name: consumer
+  dependencies:
+    - local-lib-match: ">=1.0.0 <2.0.0"
+    - local-lib-mismatch: ">=2.0.0 <3.0.0"
+    - local-lib-no-version: ">=5.0.0 <6.0.0"
+
+workspace:
+  extraPackages:
+    local-lib-match:
+      path: ../local-lib-match
+    local-lib-mismatch:
+      path: ../local-lib-mismatch
+    local-lib-no-version:
+      path: ../local-lib-no-version
