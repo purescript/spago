@@ -782,13 +782,21 @@ getTransitiveDeps workspacePackage = do
 getTransitiveDepsFromRegistry :: forall a. Map PackageName Range -> PackageMap -> Spago (FetchEnv a) (Map PackageName Version)
 getTransitiveDepsFromRegistry depsRanges extraPackages = do
   let
+    -- Widen ranges for non-registry extra packages (local/git/workspace overrides).
+    widenIfExtra :: Map PackageName Range -> Map PackageName Range
+    widenIfExtra = mapWithIndex \name range ->
+      case Map.lookup name extraPackages of
+        Just (RegistryVersion _) -> range
+        Just _ -> Config.widestRange
+        Nothing -> range
+
     loader :: PackageName -> Spago (FetchEnv a) (Map Version (Map PackageName Range))
     loader packageName = do
       -- First look up in the extra packages, as they are the workspace ones, and overrides
       case Map.lookup packageName extraPackages of
         Just p -> do
           deps <- getPackageDependencies packageName p
-          let coreDeps = deps <#> _.core # fromMaybe Map.empty
+          let coreDeps = widenIfExtra $ deps <#> _.core # fromMaybe Map.empty
           pure $ Map.singleton (getVersionFromPackage p) coreDeps
         Nothing -> do
           maybeMetadata <- Registry.getMetadata packageName
@@ -798,10 +806,26 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
               Left _err -> []
           map (Map.fromFoldable :: Array _ -> Map _ _) $ for versions \v -> do
             maybeManifest <- Registry.getManifestFromIndex packageName v
-            let deps = fromMaybe Map.empty $ map (_.dependencies <<< unwrap) maybeManifest
+            let deps = widenIfExtra $ fromMaybe Map.empty $ map (_.dependencies <<< unwrap) maybeManifest
             pure (Tuple v deps)
 
-  maybePlan <- Registry.Solver.loadAndSolve loader depsRanges
+  -- Warn when a non-registry extra package's version doesn't match the declared constraint
+  for_ (Map.toUnfoldable (Map.intersectionWith Tuple depsRanges extraPackages) :: Array _)
+    \(Tuple name (Tuple range pkg)) -> case pkg of
+      RegistryVersion _ -> pure unit
+      _ -> do
+        maybeVersion <- extraPackageVersion pkg
+        case maybeVersion of
+          Just version | not (Range.includes range version) ->
+            logWarn $ "Extra package " <> PackageName.print name <> " has version "
+              <> Version.print version
+              <> ", which doesn't satisfy constraint "
+              <> Range.print range
+          _ -> pure unit
+
+  let widenedDepsRanges = widenIfExtra depsRanges
+
+  maybePlan <- Registry.Solver.loadAndSolve loader widenedDepsRanges
 
   case maybePlan of
     Left errs -> die
@@ -900,6 +924,19 @@ getVersionFromPackage :: Package -> Version
 getVersionFromPackage = case _ of
   RegistryVersion v -> v
   _ -> unsafeFromRight $ Version.parse "0.0.0"
+
+-- | Extract the version from a non-registry package's config if available.
+extraPackageVersion :: forall a. Package -> Spago (FetchEnv a) (Maybe Version)
+extraPackageVersion = case _ of
+  RegistryVersion v -> pure $ Just v
+  WorkspacePackage wp -> pure $ wp.package.publish <#> _.version
+  LocalPackage p -> do
+    result <- Config.readConfig (Path.global p.path </> "spago.yaml")
+    pure $ case result of
+      Right { yaml: { package: Just { publish: Just { version } } } } -> Just version
+      _ -> Nothing
+  -- Git packages would require cloning to read their config, so no version warning is possible.
+  GitPackage _ -> pure Nothing
 
 notInPackageSetError :: PackageName -> TransitiveDepsResult -> TransitiveDepsResult
 notInPackageSetError dep result = result
