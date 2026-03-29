@@ -321,7 +321,7 @@ spec = Spec.describe "monorepo" do
             , result
             , sanitize:
                 sanitizePlatformOutput
-                  >>> String.replaceAll (String.Pattern libRepoStr) (String.Replacement "<library-repo-path>")
+                  >>> String.replaceAll (String.Pattern (Path.withForwardSlashes' libRepoStr)) (String.Replacement "<library-repo-path>")
                   >>> Regex.replace (unsafeFromRight $ Regex.regex "^purs compile: .*$" (Regex.Flags.global <> Regex.Flags.multiline)) "purs compile..."
             }
 
