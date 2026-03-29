@@ -20,7 +20,8 @@ main =
     { defaultConfig: Config.defaultConfig { timeout = Just (Milliseconds 5_000.0) }
     , parseCLIOptions: true
     }
-    [ consoleReporter ] mainTest
+    [ consoleReporter ]
+    mainTest
 
 mainTest :: Spec Unit
 mainTest = do

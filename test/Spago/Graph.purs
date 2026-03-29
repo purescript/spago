@@ -7,7 +7,7 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 
 spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec = Spec.parallel $ Spec.around withTempDir do
   Spec.describe "graph" do
 
     Spec.it "can output module and package graphs in various formats" \{ spago, fixture } -> do

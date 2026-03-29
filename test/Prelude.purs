@@ -10,6 +10,8 @@ import Data.Map as Map
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Aff.AVar (AVar)
+import Effect.Aff.AVar as AVar
 import Effect.Class.Console (log)
 import Effect.Class.Console as Console
 import Node.FS.Aff as FS.Aff
@@ -99,6 +101,34 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
 
   cleanupTempDir _ = pure unit
 
+-- | Per-command mutexes to limit concurrent compiler invocations.
+-- | Each command type (build, test, run, bundle) gets its own AVar Unit lock.
+-- | Two builds can't run concurrently, but a build and a test can.
+type CommandLocks = Map String (AVar Unit)
+
+-- | Wrap an action with the lock for the given command, if one exists.
+withCommandLock :: forall a. CommandLocks -> Array String -> Aff a -> Aff a
+withCommandLock locks args action =
+  case Array.head args >>= flip Map.lookup locks of
+    Just lock -> do
+      AVar.take lock
+      Aff.finally (AVar.put unit lock) action
+    Nothing -> action
+
+-- | Like `withTempDir`, but wraps `spago`/`spagoIn` calls so that
+-- | compiler-triggering commands are serialized per command type.
+withBuildLock :: CommandLocks -> (TestDirs -> Aff Unit) -> Aff Unit
+withBuildLock locks k = withTempDir \dirs ->
+  let
+    lockCmd :: forall a. (Array String -> Aff a) -> Array String -> Aff a
+    lockCmd f args = withCommandLock locks args (f args)
+  in
+    k $ dirs
+      { spago = lockCmd dirs.spago
+      , spago' = \stdin -> lockCmd (dirs.spago' stdin)
+      , spagoIn = \dir -> lockCmd (dirs.spagoIn dir)
+      }
+
 rmRf :: ∀ m path. MonadAff m => IsPath path => path -> m Unit
 rmRf dir = liftAff $ FS.Aff.rm' (toRaw dir) { force: true, recursive: true, maxRetries: 5, retryDelay: 1000 }
 
@@ -124,20 +154,20 @@ shouldEqualStr v1 v2 =
   let
     renderNonPrinting =
       String.replaceAll (String.Pattern "\r") (String.Replacement "␍")
-      >>> String.replaceAll (String.Pattern "\t") (String.Replacement "␉-->")
+        >>> String.replaceAll (String.Pattern "\t") (String.Replacement "␉-->")
   in
-  when (v1 /= v2) do
-    fail $ Array.intercalate "\n"
-      [ ""
-      , "===== (Actual)"
-      , renderNonPrinting v1
-      , "====="
-      , "  ≠"
-      , "===== (Expected)"
-      , renderNonPrinting v2
-      , "====="
-      , ""
-      ]
+    when (v1 /= v2) do
+      fail $ Array.intercalate "\n"
+        [ ""
+        , "===== (Actual)"
+        , renderNonPrinting v1
+        , "====="
+        , "  ≠"
+        , "===== (Expected)"
+        , renderNonPrinting v2
+        , "====="
+        , ""
+        ]
 
 -- | Normalize path separators and line endings for cross-platform fixture comparison.
 sanitizePlatformOutput :: String -> String
@@ -465,8 +495,12 @@ mkGitRepo testCwd { name, deps } = do
   let repo = testCwd </> ("lib-" <> name)
   FS.mkdirp repo
   let depsYaml = if Array.null deps then "[]" else "\n" <> foldMap (\d -> "    - " <> d <> "\n") deps
-  FS.writeTextFile (repo </> "spago.yaml") $
-    "package:\n  name: " <> name <> "\n  dependencies: " <> depsYaml <> "\nworkspace:\n  packageSet:\n    registry: 0.0.1\n"
+  FS.writeTextFile (repo </> "spago.yaml")
+    $ "package:\n  name: "
+    <> name
+    <> "\n  dependencies: "
+    <> depsYaml
+    <> "\nworkspace:\n  packageSet:\n    registry: 0.0.1\n"
   FS.mkdirp (repo </> "src")
   FS.writeTextFile (repo </> "src/Main.purs") $ "module " <> String.toUpper name <> ".Main where\n"
   git repo [ "init", "-b", "main" ]

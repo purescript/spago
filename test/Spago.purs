@@ -2,9 +2,13 @@ module Test.Spago where
 
 import Prelude
 
+import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..))
+import Effect.AVar as Effect.AVar
 import Test.Spago.Build as Build
 import Test.Spago.Bundle as Bundle
 import Test.Spago.Cli as Cli
@@ -33,43 +37,47 @@ import Test.Spec.Runner.Node (runSpecAndExitProcess')
 import Test.Spec.Runner.Node.Config as Cfg
 
 main :: Effect Unit
-main =
+main = do
+  -- Per-command locks: one mutex per compiler-triggering command.
+  -- Two builds can't run concurrently, but a build and a test can.
+  cmdLocks <- Map.fromFoldable <$> traverse (\cmd -> Tuple cmd <$> Effect.AVar.new unit)
+    [ "build", "test", "run", "bundle" ]
   runSpecAndExitProcess'
-    { defaultConfig: Cfg.defaultConfig { timeout = Just (Milliseconds 120_000.0) }
+    { defaultConfig: Cfg.defaultConfig { timeout = Just (Milliseconds 300_000.0) }
     , parseCLIOptions: true
     }
     [ Spec.Reporter.consoleReporter ]
     do
       Spec.describe "spago" do
         -- A few of the test suites are hard to parallelise.
-        -- E.g. the build one runs so many instances of the compiler that they easily
-        -- segfault, which makes the tests unreliable.
-        -- Or e.g. some of these remove the global cache, which would definitely mess up
+        -- E.g. some of these remove the global cache, which would definitely mess up
         -- other tests running in parallel to it.
         -- So we run these problematic suites first, sequentially, before running the
         -- rest of the suites with parallelism.
-        Build.lockfileSpec
-        Build.spec
+        Build.lockfileSpec cmdLocks
+        -- Publish/Transfer assume a warm registry cache from earlier tests,
+        -- so they must stay sequential.
         Publish.spec
         Transfer.spec
-        Glob.spec
 
-        Spec.parallel $ Cli.spec
-        Spec.parallel $ Init.spec
-        Spec.parallel $ Sources.spec
-        Spec.parallel $ Install.spec
-        Spec.parallel $ Uninstall.spec
-        Spec.parallel $ Ls.spec
-        Spec.parallel $ Repl.spec
-        Spec.parallel $ Run.spec
-        Spec.parallel $ Test.spec
-        Spec.parallel $ Bundle.spec
-        Spec.parallel $ Registry.spec
-        Spec.parallel $ Docs.spec
-        Spec.parallel $ Upgrade.spec
-        Spec.parallel $ Graph.spec
-        Spec.parallel $ Lock.spec
-        Spec.parallel $ Unit.spec
-        Spec.parallel $ Errors.spec
-        Spec.parallel $ Config.spec
-        Spec.parallel $ Install.forceResetSpec
+        Build.spec cmdLocks
+        Cli.spec
+        Init.spec
+        Sources.spec
+        Install.spec cmdLocks
+        Uninstall.spec cmdLocks
+        Ls.spec
+        Repl.spec
+        Run.spec cmdLocks
+        Test.spec cmdLocks
+        Bundle.spec cmdLocks
+        Registry.spec
+        Docs.spec
+        Upgrade.spec cmdLocks
+        Graph.spec
+        Lock.spec
+        Unit.spec
+        Errors.spec cmdLocks
+        Config.spec
+        Glob.spec
+        Install.forceResetSpec

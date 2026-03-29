@@ -188,7 +188,7 @@ spec =
 
       -- Regression test for https://github.com/purescript/spago/pull/1222
       -- .gitignore patterns should not affect discovery of transitive deps
-      let gitignores = [".spago", "/.spago", ".spago/**"]
+      let gitignores = [ ".spago", "/.spago", ".spago/**" ]
       for_ gitignores \gitignore -> do
         -- Re-copy fixture to get a clean state
         FS.copyTree { src: fixture "pedantic/follow-instructions", dst: testCwd }

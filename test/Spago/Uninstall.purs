@@ -11,8 +11,8 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 
-spec ∷ Spec Unit
-spec = Spec.around withTempDir do
+spec ∷ CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "uninstall" do
 
     Spec.it "fails when no package was selected" \{ spago, fixture, testCwd } -> do

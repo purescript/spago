@@ -164,5 +164,5 @@ workspace:
     json-codecs: 4.0.0
     spec:
       git: https://github.com/purescript-spec/purescript-spec.git
-      ref: 8b667df33a6fc11c50a6c0feb820fb5bba259ff7
+      ref: 2f8c7fd6ee04041d947f4629248695ac667257e1
 

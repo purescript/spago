@@ -30,8 +30,8 @@
   "main": "bin/bundle.js",
   "scripts": {
     "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago,core/spago}.yaml && git add {spago,bin/spago,core/spago}.yaml",
-    "format": "purs-tidy format-in-place core src bin docs-search",
-    "format:check": "purs-tidy check core src bin docs-search",
+    "format": "purs-tidy format-in-place core src bin docs-search test",
+    "format:check": "purs-tidy check core src bin docs-search test",
     "fix-bundle": "node -e \"require('fs').writeFileSync('bin/bundle.js',require('fs').readFileSync('bin/bundle.js','utf8').replace('#!/usr/bin/env node','#!/usr/bin/env -S node --no-warnings=ExperimentalWarning'))\"",
     "bundle": "spago bundle -p spago-bin && npm run fix-bundle",
     "prepublishOnly": "spago build && ./bin/index.dev.js bundle -p spago-bin && npm run fix-bundle && ./bin/index.dev.js bundle -p docs-search-client-halogen",

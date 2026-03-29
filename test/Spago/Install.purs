@@ -21,8 +21,8 @@ import Test.Spec.Assertions as Assert
 import Test.Spec.Assertions as Assertions
 import Test.Spec.Assertions.String (shouldContain)
 
-spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "install" do
 
     Spec.it "warns that the config was not changed when trying to install a package already present in project dependencies" \{ spago, fixture } -> do
@@ -71,13 +71,13 @@ spec = Spec.around withTempDir do
         [ "package:"
         , "  name: aaa"
         , "  dependencies:"
-        , "    prelude: \">=6.0.0 <7.0.0\""
-        , "    lists: \">=1000.0.0 <1000.0.1\""
+        , "    - prelude: \">=6.0.0 <7.0.0\""
+        , "    - lists: \">=1000.0.0 <1000.0.1\""
         , "  test:"
         , "    main: Test.Main"
         , "    dependencies:"
-        , "      spec: \">=7.0.0 <8.0.0\""
-        , "      maybe: \">=1000.0.0 <1000.0.1\""
+        , "      - spec: \">=7.0.0 <8.0.0\""
+        , "      - maybe: \">=1000.0.0 <1000.0.1\""
         , "workspace:"
         , "  packageSet:"
         , "    registry: 0.0.1"
@@ -91,12 +91,14 @@ spec = Spec.around withTempDir do
       spago [ "init" ] >>= shouldBeSuccess
 
       -- Installs a package in the set from a commit hash
-      let eitherConfig = gitExtraConfig
-            { name: "eee", extra: "either"
-            , git: "https://github.com/purescript/purescript-either.git"
-            , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
-            , deps: [ "control", "invariant", "maybe", "prelude" ]
-            }
+      let
+        eitherConfig = gitExtraConfig
+          { name: "eee"
+          , extra: "either"
+          , git: "https://github.com/purescript/purescript-either.git"
+          , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
+          , deps: [ "control", "invariant", "maybe", "prelude" ]
+          }
       FS.writeTextFile (testCwd </> "spago.yaml") eitherConfig
       spago [ "install", "either" ] >>= shouldBeSuccess
 
@@ -130,7 +132,8 @@ spec = Spec.around withTempDir do
 
       -- Installs a package version by branch name with / in it
       FS.writeTextFile (testCwd </> "spago.yaml") $ gitExtraConfig
-        { name: "ddd", extra: "nonexistent-package"
+        { name: "ddd"
+        , extra: "nonexistent-package"
         , git: "https://github.com/spacchetti/purescript-metadata.git"
         , ref: "spago-test/branch-with-slash"
         , deps: [ "prelude" ]
@@ -145,7 +148,8 @@ spec = Spec.around withTempDir do
 
       -- Installs a package not in the set from a commit hash
       FS.writeTextFile (testCwd </> "spago.yaml") $ gitExtraConfig
-        { name: "eee", extra: "spago"
+        { name: "eee"
+        , extra: "spago"
         , git: "https://github.com/purescript/spago.git"
         , ref: "cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990"
         , deps: [ "prelude" ]
@@ -154,7 +158,8 @@ spec = Spec.around withTempDir do
 
       -- Can't install a package from a not-existing commit hash
       FS.writeTextFile (testCwd </> "spago.yaml") $ gitExtraConfig
-        { name: "eee", extra: "either"
+        { name: "eee"
+        , extra: "either"
         , git: "https://github.com/purescript/spago.git"
         , ref: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         , deps: [ "prelude" ]
@@ -264,25 +269,27 @@ spec = Spec.around withTempDir do
 
 gitExtraConfig :: { name :: String, extra :: String, git :: String, ref :: String, deps :: Array String } -> String
 gitExtraConfig { name, extra, git, ref, deps } =
-  String.joinWith "\n" $
-    [ "package:"
-    , "  name: " <> name
-    , "  dependencies: []"
-    , "workspace:"
-    , "  packageSet:"
-    , "    registry: 0.0.1"
-    , "  extraPackages:"
-    , "    " <> extra <> ":"
-    , "      git: " <> git
-    , "      ref: " <> ref
-    , "      dependencies:"
-    ] <> map ("        - " <> _) deps
+  String.joinWith "\n"
+    $
+      [ "package:"
+      , "  name: " <> name
+      , "  dependencies: []"
+      , "workspace:"
+      , "  packageSet:"
+      , "    registry: 0.0.1"
+      , "  extraPackages:"
+      , "    " <> extra <> ":"
+      , "      git: " <> git
+      , "      ref: " <> ref
+      , "      dependencies:"
+      ]
+    <> map ("        - " <> _) deps
 
 -- | Test that fetchRepo handles git history rewrites (squash) gracefully
 -- This verifies that git pull --rebase works even when the remote history is squashed,
 -- as long as the content is the same. This is important for the registry repo.
 forceResetSpec :: Spec Unit
-forceResetSpec = Spec.around withTempDir do
+forceResetSpec = Spec.parallel $ Spec.around withTempDir do
   Spec.describe "git fetchRepo" do
     Spec.it "handles history rewrite (squash) gracefully" \{ testCwd } -> do
       -- Setup logging

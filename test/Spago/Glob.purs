@@ -45,7 +45,7 @@ globTmpDir m = Aff.bracket make cleanup m
     pure base
 
 spec :: Spec Unit
-spec = Spec.around globTmpDir do
+spec = Spec.parallel $ Spec.around globTmpDir do
   let glob root includePatterns = Glob.gitignoringGlob { root, includePatterns, ignorePatterns: [] }
   Spec.describe "glob" do
     Spec.describe "glob behavior" do

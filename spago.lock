@@ -1007,7 +1007,7 @@
       },
       "spec": {
         "git": "https://github.com/purescript-spec/purescript-spec.git",
-        "ref": "8b667df33a6fc11c50a6c0feb820fb5bba259ff7"
+        "ref": "2f8c7fd6ee04041d947f4629248695ac667257e1"
       }
     }
   },
@@ -2847,7 +2847,7 @@
     "spec": {
       "type": "git",
       "url": "https://github.com/purescript-spec/purescript-spec.git",
-      "rev": "8b667df33a6fc11c50a6c0feb820fb5bba259ff7",
+      "rev": "2f8c7fd6ee04041d947f4629248695ac667257e1",
       "dependencies": [
         "aff",
         "ansi",

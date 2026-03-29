@@ -13,8 +13,8 @@ import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 import Test.Spec.Assertions.String (shouldContain, shouldNotContain)
 
-spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "upgrade" do
 
     Spec.it "can upgrade a package set version" \{ spago, testCwd } -> do

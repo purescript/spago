@@ -18,7 +18,7 @@ import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 
 spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec = Spec.parallel $ Spec.around withTempDir do
   Spec.it "parses lockfile" \_ -> do
     case parseJson Lock.lockfileCodec validLockfileString of
       Left error ->

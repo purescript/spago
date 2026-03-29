@@ -19,7 +19,7 @@ import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 
 spec :: Spec Unit
-spec =
+spec = Spec.parallel $
   Spec.describe "config codec" do
     Spec.it "parses valid spago.yaml" do
       let parsedConfig = Yaml.parseYaml C.configCodec validSpagoYaml.serialized
@@ -37,7 +37,8 @@ spec =
 
     Spec.it "parses exact version (e.g. '6.0.1') as ExactVersion" do
       let
-        yaml = """
+        yaml =
+          """
           package:
             name: test
             dependencies:
@@ -144,21 +145,21 @@ spec =
                   >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
             }
 
-    where
-    shouldFailWith result expectedError =
-      case result of
-        Right _ -> Assert.fail "Expected an error, but parsed successfully"
-        Left err -> CJ.print err `shouldEqual` expectedError
+  where
+  shouldFailWith result expectedError =
+    case result of
+      Right _ -> Assert.fail "Expected an error, but parsed successfully"
+      Left err -> CJ.print err `shouldEqual` expectedError
 
-    shouldBeSuccessErr' = shouldBeErr isRight
-    shouldBeFailureErr' = shouldBeErr isLeft
+  shouldBeSuccessErr' = shouldBeErr isRight
+  shouldBeFailureErr' = shouldBeErr isLeft
 
-    shouldBeErr result file = checkOutputs'
-        { stdoutFile: Nothing
-        , stderrFile: Just file
-        , result
-        , sanitize: sanitizePlatformOutput
-        }
+  shouldBeErr result file = checkOutputs'
+    { stdoutFile: Nothing
+    , stderrFile: Just file
+    , result
+    , sanitize: sanitizePlatformOutput
+    }
 
 validSpagoYaml :: { serialized :: String, parsed :: C.Config }
 validSpagoYaml =

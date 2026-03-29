@@ -9,8 +9,8 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions.String (shouldContain)
 
-spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "run" do
 
     Spec.it "works at all" \{ spago, fixture } -> do
@@ -32,7 +32,7 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
 
       -- can pass arguments to the application
-      spago [ "run", "hello" , "world" ] >>= shouldBeSuccessOutput (fixture "run-args-output.txt")
+      spago [ "run", "hello", "world" ] >>= shouldBeSuccessOutput (fixture "run-args-output.txt")
 
       -- args in spago.yaml should be used as the fallback args
       editSpagoYaml' (testCwd </> "spago.yaml") \config ->
@@ -40,7 +40,7 @@ spec = Spec.around withTempDir do
       spago [ "run" ] >>= shouldBeSuccessOutput (fixture "run-args-output.txt")
 
       -- explicit args has more priority than args in spago.yaml
-      spago [ "run", "bye" , "world" ] >>= shouldBeSuccessOutput (fixture "run-args-output2.txt")
+      spago [ "run", "bye", "world" ] >>= shouldBeSuccessOutput (fixture "run-args-output2.txt")
 
     Spec.it "works with special characters in path (apostrophe, spaces, brackets)" \{ spagoIn, fixture, testCwd } -> do
       -- Test apostrophe - "Tim's Test" should become package "tims-test"

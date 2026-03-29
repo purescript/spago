@@ -12,8 +12,8 @@ import Test.Spec as Spec
 import Test.Spec.Assertions (shouldNotEqual)
 import Test.Spec.Assertions.String (shouldStartWith)
 
-spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "bundle" do
 
     Spec.it "bundles app and module variants with and without source maps" \{ spago, fixture, testCwd } -> do

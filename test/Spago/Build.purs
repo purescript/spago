@@ -21,8 +21,8 @@ import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 import Test.Spec.Assertions.String (shouldContain)
 
-spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec sem = Spec.parallel $ Spec.around (withBuildLock sem) do
   Spec.describe "build" do
 
     Spec.it "builds successfully, passes options to purs, uses different output folder, and --strict causes failure" \{ spago, fixture, testCwd } -> do
@@ -233,8 +233,8 @@ spec = Spec.around withTempDir do
 
 -- | Lockfile tests that touch global shared state (rmRf registryPath).
 -- | Must run sequentially, not in parallel with other tests.
-lockfileSpec :: Spec Unit
-lockfileSpec = Spec.around withTempDir do
+lockfileSpec :: CommandLocks -> Spec Unit
+lockfileSpec sem = Spec.around (withBuildLock sem) do
   Spec.describe "lockfile" do
     Spec.it "building with a lockfile doesn't need the Registry repo" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess

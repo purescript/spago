@@ -8,7 +8,7 @@ import Test.Spec.Assertions as Assert
 import Spago.FS as FS
 
 spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec = Spec.parallel $ Spec.around withTempDir do
   Spec.describe "docs" do
 
     Spec.it "documents successfully and can output ctags" \{ spago, testCwd } -> do

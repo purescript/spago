@@ -10,28 +10,34 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 
 spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec = Spec.parallel $ Spec.around withTempDir do
   Spec.describe "sources" do
 
     Spec.it "contains project and subproject sources" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
 
       -- contains both dependencies and project sources
-      let fixt = case Process.platform of
-            Just Platform.Win32 -> fixture "sources-output.win.txt"
-            _ -> fixture "sources-output.txt"
+      let
+        fixt = case Process.platform of
+          Just Platform.Win32 -> fixture "sources-output.win.txt"
+          _ -> fixture "sources-output.txt"
       spago [ "sources" ] >>= checkOutputs'
-        { stdoutFile: Just fixt, stderrFile: Nothing, result: isRight
+        { stdoutFile: Just fixt
+        , stderrFile: Nothing
+        , result: isRight
         , sanitize: sortLines
         }
 
       -- contains subproject sources when selecting a subproject
       _ <- makeSubpackage testCwd { name: "subpackage", moduleName: "Subpackage" }
-      let fixt2 = case Process.platform of
-            Just Platform.Win32 -> fixture "sources-subproject-output.win.txt"
-            _ -> fixture "sources-subproject-output.txt"
+      let
+        fixt2 = case Process.platform of
+          Just Platform.Win32 -> fixture "sources-subproject-output.win.txt"
+          _ -> fixture "sources-subproject-output.txt"
       spago [ "sources", "-p", "subpackage" ] >>= checkOutputs'
-        { stdoutFile: Just fixt2, stderrFile: Nothing, result: isRight
+        { stdoutFile: Just fixt2
+        , stderrFile: Nothing
+        , result: isRight
         , sanitize: sortLines
         }
   where

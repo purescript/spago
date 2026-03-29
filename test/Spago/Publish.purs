@@ -1,8 +1,7 @@
 module Test.Spago.Publish
   ( doTheGitThing
   , spec
-  )
-  where
+  ) where
 
 import Test.Prelude
 
@@ -178,7 +177,6 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing testCwd
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/1109-tag-mismatch/expected-stderr.txt")
-
 
 doTheGitThing :: RootPath -> Aff Unit
 doTheGitThing root = do

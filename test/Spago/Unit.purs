@@ -14,13 +14,12 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 
 spec :: Spec Unit
-spec = Spec.describe "unit" do
-  Spec.parallel do
-    FindFlags.spec
-    CheckInjectivity.spec
-    Init.spec
-    Printer.spec
-    Git.spec
-    Path.spec
-    NodeVersion.spec
-    Run.spec
+spec = Spec.parallel $ Spec.describe "unit" do
+  FindFlags.spec
+  CheckInjectivity.spec
+  Init.spec
+  Printer.spec
+  Git.spec
+  Path.spec
+  NodeVersion.spec
+  Run.spec
