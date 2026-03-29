@@ -128,7 +128,11 @@ run = do
       let
         globs = Build.getBuildGlobs
           { rootPath
-          , dependencies: Fetch.toAllDependencies dependencies
+          , dependencies:
+              let
+                { core, test } = unsafeFromJust $ Map.lookup selected.package.name dependencies
+              in
+                Map.union core test
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true
