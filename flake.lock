@@ -40,11 +40,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1769971816,
-        "narHash": "sha256-6WdiHwc7cM07ttMh3JQslHzmwL9+RaDvf2OwZ0bsWu0=",
+        "lastModified": 1774788162,
+        "narHash": "sha256-TO6d4pXIC6U5KlikZ5v2Ye8xEwdC9A9LtglIql8EOxE=",
         "owner": "thomashoneyman",
         "repo": "purescript-overlay",
-        "rev": "af71d25ea276b03c46e79cf6ef59edd0a938dfd3",
+        "rev": "d0da163cb942c08669bb6dfcf374174215141ecc",
         "type": "github"
       },
       "original": {

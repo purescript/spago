@@ -281,7 +281,7 @@
     },
     "package_set": {
       "address": {
-        "registry": "75.0.0"
+        "registry": "75.3.0"
       },
       "compiler": ">=0.15.15 <0.16.0",
       "content": {
@@ -354,6 +354,7 @@
         "codec-argonaut": "10.0.0",
         "codec-json": "2.0.0",
         "colors": "7.0.1",
+        "compile-fail": "0.4.0",
         "concur-core": "0.5.0",
         "concur-react": "0.5.0",
         "concurrent-queues": "3.0.0",
@@ -492,10 +493,10 @@
         "hylograph-canvas": "0.1.0",
         "hylograph-d3-kernel": "0.1.0",
         "hylograph-graph": "0.2.0",
-        "hylograph-layout": "0.2.0",
-        "hylograph-music": "0.1.0",
+        "hylograph-layout": "0.2.1",
+        "hylograph-music": "0.2.0",
         "hylograph-optics": "0.1.0",
-        "hylograph-selection": "0.1.1",
+        "hylograph-selection": "0.3.4",
         "hylograph-simulation": "0.3.0",
         "hylograph-simulation-core": "0.1.0",
         "hylograph-simulation-halogen": "0.3.0",
@@ -546,6 +547,7 @@
         "leveldb": "1.0.1",
         "liminal": "1.0.1",
         "linalg": "6.0.0",
+        "linear": "0.1.0",
         "lists": "7.0.0",
         "literals": "1.0.2",
         "logging": "3.0.0",
@@ -727,6 +729,7 @@
         "semirings": "7.0.0",
         "shuffle": "2.0.0",
         "sigil": "0.3.0",
+        "sigil-hats": "0.2.0",
         "signal": "13.0.0",
         "simple-emitter": "3.0.1",
         "simple-i18n": "2.0.1",
@@ -740,7 +743,7 @@
         "soundfonts": "4.1.0",
         "sparse-matrices": "2.0.1",
         "sparse-polynomials": "3.0.1",
-        "spec": "8.1.1",
+        "spec": "8.1.2",
         "spec-discovery": "8.4.1",
         "spec-mocha": "5.1.1",
         "spec-node": "0.0.3",
@@ -880,7 +883,7 @@
         "yoga-dynamodb": "0.1.1",
         "yoga-elasticsearch": "0.1.1",
         "yoga-fastify": "0.5.1",
-        "yoga-fastify-om": "0.4.1",
+        "yoga-fastify-om": "0.4.4",
         "yoga-fetch": "1.0.1",
         "yoga-fetch-om": "0.6.2",
         "yoga-http-api": "0.3.1",
@@ -892,7 +895,7 @@
         "yoga-om-layer": "2.0.0",
         "yoga-om-strom": "0.4.2",
         "yoga-om-workerbees": "0.1.2",
-        "yoga-opentelemetry": "0.1.1",
+        "yoga-opentelemetry": "0.2.0",
         "yoga-options": "0.1.1",
         "yoga-pino": "0.1.1",
         "yoga-postgres": "6.0.0",
@@ -1004,10 +1007,6 @@
           "ordered-collections",
           "prelude"
         ]
-      },
-      "spec": {
-        "git": "https://github.com/purescript-spec/purescript-spec.git",
-        "ref": "2f8c7fd6ee04041d947f4629248695ac667257e1"
       }
     }
   },
@@ -1352,15 +1351,6 @@
         "partial",
         "prelude",
         "tuples"
-      ]
-    },
-    "debug": {
-      "type": "registry",
-      "version": "6.0.2",
-      "integrity": "sha256-d/EzRm/J2JyzvlIeo2Ex78Y7HRB0IXBitnVJywL4gHk=",
-      "dependencies": [
-        "functions",
-        "prelude"
       ]
     },
     "distributive": {
@@ -2845,9 +2835,9 @@
       ]
     },
     "spec": {
-      "type": "git",
-      "url": "https://github.com/purescript-spec/purescript-spec.git",
-      "rev": "2f8c7fd6ee04041d947f4629248695ac667257e1",
+      "type": "registry",
+      "version": "8.1.2",
+      "integrity": "sha256-klPPJ6lBQI1CGOAdLJ+ZoGRt8XZippkTKjn53BrSkL0=",
       "dependencies": [
         "aff",
         "ansi",
@@ -2856,7 +2846,6 @@
         "bifunctors",
         "control",
         "datetime",
-        "debug",
         "effect",
         "either",
         "exceptions",

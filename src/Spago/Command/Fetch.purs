@@ -342,8 +342,12 @@ fetchPackagesToLocalCache packages = do
                     unless (archiveSha == versionMetadata.hash) do
                       die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
                     -- if everything's alright we stash the tar in the global cache
+                    -- Write to a temp file then atomically rename, so parallel processes
+                    -- don't corrupt the archive by writing to the same path simultaneously.
+                    let tempArchivePath = globalCachePackagePath </> (versionString <> ".tar.gz." <> Path.basename tempDir)
                     logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> Path.quote archivePath
-                    FS.writeFile archivePath archiveBuffer
+                    FS.writeFile tempArchivePath archiveBuffer
+                    FS.moveSync { src: tempArchivePath, dst: archivePath }
                     logDebug $ "Unpacking archive to temp folder: " <> Path.quote tempDir
                     (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
                       Right _ -> pure unit
