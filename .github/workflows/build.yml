@@ -85,6 +85,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: samypr100/setup-dev-drive@v3
         with:
+          drive-size: 10GB
           workspace-copy: true
           env-mapping: |
             TEMP,{{ DEV_DRIVE }}/tmp
