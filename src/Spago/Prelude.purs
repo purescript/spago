@@ -34,6 +34,7 @@ import Data.String.Extra (levenshtein)
 import Data.Traversable (class Traversable)
 import Effect.Aff as Aff
 import Effect.Now as Now
+import Effect.Random as Random
 import JSON (JSON)
 import JSON as JSON
 import Node.Buffer as Buffer
@@ -175,7 +176,8 @@ mkTemp' maybeSuffix = liftAff do
   -- Get a random string
   (HexString random) <- liftEffect do
     now <- Now.now
-    sha <- Sha256.hashString $ show now <> fromMaybe "" maybeSuffix
+    rand <- Random.random
+    sha <- Sha256.hashString $ show now <> show rand <> fromMaybe "" maybeSuffix
     shaToHex sha
   -- Return the dir, but don't make it - that's the responsibility of the client
   let tempDirPath = Paths.paths.temp </> String.drop 56 random

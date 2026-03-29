@@ -55,8 +55,8 @@ spec =
       , result
       , sanitize:
           sanitizeCliHelpOutput
-          >>> withForwardSlashes'
-          >>> Regex.replace versionsRegex "Found PureScript a.b.c, will use package set x.y.z"
+            >>> withForwardSlashes'
+            >>> Regex.replace versionsRegex "Found PureScript a.b.c, will use package set x.y.z"
       }
 
   versionsRegex = unsafeFromRight $

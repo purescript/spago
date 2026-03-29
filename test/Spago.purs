@@ -2,9 +2,13 @@ module Test.Spago where
 
 import Prelude
 
+import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..))
+import Effect.AVar as Effect.AVar
 import Test.Spago.Build as Build
 import Test.Spago.Bundle as Bundle
 import Test.Spago.Cli as Cli
@@ -32,38 +36,48 @@ import Test.Spec.Reporter as Spec.Reporter
 import Test.Spec.Runner.Node (runSpecAndExitProcess')
 import Test.Spec.Runner.Node.Config as Cfg
 
-testConfig :: Cfg.TestRunConfig
-testConfig = Cfg.defaultConfig
-  { timeout = Just (Milliseconds 120_000.0)
-  }
-
 main :: Effect Unit
 main = do
-  config <- Cfg.fromCommandLine' testConfig Cfg.commandLineOptionParsers
-  runSpecAndExitProcess' config [ Spec.Reporter.consoleReporter ] do
-    Spec.describe "spago" do
-      -- TODO: script
-      Cli.spec
-      Init.spec
-      Sources.spec
-      Install.spec
-      Uninstall.spec
-      Ls.spec
-      Build.spec
-      Repl.spec
-      Run.spec
-      Test.spec
-      Bundle.spec
-      Registry.spec
-      Docs.spec
-      Upgrade.spec
-      Publish.spec
-      Transfer.spec
-      Graph.spec
-      Spec.describe "miscellaneous" do
-        Lock.spec
+  -- Per-command locks: one mutex per compiler-triggering command.
+  -- Two builds can't run concurrently, but a build and a test can.
+  cmdLocks <- Map.fromFoldable <$> traverse (\cmd -> Tuple cmd <$> Effect.AVar.new unit)
+    [ "build", "test", "run", "bundle", "install", "fetch" ]
+  runSpecAndExitProcess'
+    { defaultConfig: Cfg.defaultConfig { timeout = Just (Milliseconds 600_000.0) }
+    , parseCLIOptions: true
+    }
+    [ Spec.Reporter.consoleReporter ]
+    do
+      Spec.describe "spago" do
+        -- A few of the test suites are hard to parallelise.
+        -- E.g. some of these remove the global cache, which would definitely mess up
+        -- other tests running in parallel to it.
+        -- So we run these problematic suites first, sequentially, before running the
+        -- rest of the suites with parallelism.
+        Build.lockfileSpec cmdLocks
+        -- Publish/Transfer assume a warm registry cache from earlier tests,
+        -- so they must stay sequential.
+        Publish.spec
+        Transfer.spec
+
+        Build.spec cmdLocks
+        Cli.spec
+        Init.spec
+        Sources.spec
+        Install.spec cmdLocks
+        Uninstall.spec cmdLocks
+        Ls.spec cmdLocks
+        Repl.spec
+        Run.spec cmdLocks
+        Test.spec cmdLocks
+        Bundle.spec cmdLocks
+        Registry.spec
+        Docs.spec
+        Upgrade.spec cmdLocks
+        Graph.spec
+        Lock.spec cmdLocks
         Unit.spec
-        Glob.spec
-        Errors.spec
+        Errors.spec cmdLocks
         Config.spec
+        Glob.spec
         Install.forceResetSpec

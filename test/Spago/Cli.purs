@@ -9,7 +9,7 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 
 spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec = Spec.parallel $ Spec.around withTempDir do
   Spec.describe "CLI command parsing" do
     Spec.it "#1146 on mistyped command option, shows help for the current command, not root help" \{ spago, fixture } -> do
       spago [ "build", "--bogus" ] >>= shouldBeFailureErr' (fixture "1146-cli-help/build.txt")
@@ -38,8 +38,8 @@ spec = Spec.around withTempDir do
 sanitizeCliHelpOutput :: String -> String
 sanitizeCliHelpOutput =
   String.trim
-  >>> Regex.replace progNameRegex "Usage: index.dev.js"
-  >>> Regex.replace optionsLineRegex " $1"
+    >>> Regex.replace progNameRegex "Usage: index.dev.js"
+    >>> Regex.replace optionsLineRegex " $1"
   where
   -- On Windows progname has the full path like
   -- "Usage: C:\whatever\index.dev.js", but on Unix

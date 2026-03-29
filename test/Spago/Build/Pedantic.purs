@@ -6,7 +6,6 @@ import Data.Array as Array
 import Data.Map as Map
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.FS as FS
-import Spago.Paths as Paths
 import Test.Spec (SpecT)
 import Test.Spec as Spec
 
@@ -32,11 +31,8 @@ spec =
                   ]
               }
           )
-        spago [ "build", "--pedantic-packages" ]
-          >>= shouldBeFailureErr (fixture "pedantic/check-direct-import-transitive-dependency.txt")
-        editSpagoYaml addPedanticFlagToSrc
-        spago [ "build" ]
-          >>= shouldBeFailureErr (fixture "pedantic/check-direct-import-transitive-dependency.txt")
+        checkPedantic testCwd spago addPedanticFlagToSrc
+          (shouldBeFailureErr (fixture "pedantic/check-direct-import-transitive-dependency.txt"))
 
       -- We are importing `Control.Alt` in the test package, which is in the `control`
       -- package, which comes through `maybe` but we are not importing directly, so we
@@ -67,7 +63,7 @@ spec =
         -- will turn it on for both source and test
         spago [ "build", "--pedantic-packages" ]
           >>= shouldBeFailureErr (fixture "pedantic/check-direct-import-transitive-dependency-both.txt")
-        editSpagoYaml addPedanticFlagToTest
+        editSpagoYaml' (testCwd </> "spago.yaml") addPedanticFlagToTest
         -- Otherwise we can just turn it on for the test, and it will complain only about `control`
         spago [ "build" ]
           >>= shouldBeFailureErr (fixture "pedantic/check-direct-import-transitive-dependency-test.txt")
@@ -86,9 +82,8 @@ spec =
                   ]
               }
           )
-        spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency.txt")
-        editSpagoYaml addPedanticFlagToSrc
-        spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency.txt")
+        checkPedantic testCwd spago addPedanticFlagToSrc
+          (shouldBeFailureErr (fixture "pedantic/check-unused-dependency.txt"))
 
       -- Here we do not install `effect` and `console` in the test package, and we don't use them
       -- in the source, so we should get an "unused" warning about them for the source, and a prompt
@@ -103,7 +98,7 @@ spec =
               }
           )
         spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency-in-source.txt")
-        editSpagoYaml addPedanticFlagToSrc
+        editSpagoYaml' (testCwd </> "spago.yaml") addPedanticFlagToSrc
         spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency.txt")
 
       -- Complain about the unused `newtype` dependency in the test package
@@ -117,13 +112,8 @@ spec =
                   ]
               }
           )
-        -- first just add the flag
-        spago [ "build", "--pedantic-packages" ]
-          >>= shouldBeFailureErr (fixture "pedantic/check-unused-test-dependency.txt")
-        -- then prove that it also works when using it from the config
-        editSpagoYaml addPedanticFlagToTest
-        spago [ "build" ]
-          >>= shouldBeFailureErr (fixture "pedantic/check-unused-test-dependency.txt")
+        checkPedantic testCwd spago addPedanticFlagToTest
+          (shouldBeFailureErr (fixture "pedantic/check-unused-test-dependency.txt"))
 
       -- `console` and `effect` are going to be unused for both source and test packages
       Spec.it "in both the source and test packages" \{ spago, fixture, testCwd } -> do
@@ -141,11 +131,8 @@ spec =
                   ]
               }
           )
-        spago [ "build", "--pedantic-packages" ]
-          >>= shouldBeFailureErr (fixture "pedantic/check-unused-source-and-test-dependency.txt")
-        editSpagoYaml (addPedanticFlagToSrc >>> addPedanticFlagToTest)
-        spago [ "build" ]
-          >>= shouldBeFailureErr (fixture "pedantic/check-unused-source-and-test-dependency.txt")
+        checkPedantic testCwd spago (addPedanticFlagToSrc >>> addPedanticFlagToTest)
+          (shouldBeFailureErr (fixture "pedantic/check-unused-source-and-test-dependency.txt"))
 
     -- The source package adds `control` and `either`, but:
     -- * `either` is unused
@@ -183,49 +170,58 @@ spec =
                 ]
             }
         )
-      spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "pedantic/check-pedantic-packages.txt")
-      editSpagoYaml (addPedanticFlagToSrc >>> addPedanticFlagToTest)
-      spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-pedantic-packages.txt")
+      checkPedantic testCwd spago (addPedanticFlagToSrc >>> addPedanticFlagToTest)
+        (shouldBeFailureErr (fixture "pedantic/check-pedantic-packages.txt"))
 
     -- A dependency on `console` will include `effect` as a transitive dependency.
     -- So, if we don't have `effect` as a direct dependency, we'll get a pedantic error
     -- where the fix is to install that missing package.
     -- Following those instructions shouldn't cause an error.
-    Spec.it "following installation instructions does not fail with an unrelated pedantic error" \{ spago, fixture, testCwd } -> do
+    Spec.it "following installation instructions does not fail, and .gitignore does not affect transitive dep discovery" \{ spago, fixture, testCwd } -> do
+      -- Base case: following pedantic installation instructions works
       FS.copyTree { src: fixture "pedantic/follow-instructions", dst: testCwd }
       spago [ "uninstall", "effect" ] >>= shouldBeSuccess
-      -- Get rid of "Compiling..." messages
       spago [ "build" ] >>= shouldBeSuccess
-      editSpagoYaml (addPedanticFlagToSrc)
+      editSpagoYaml' (testCwd </> "spago.yaml") addPedanticFlagToSrc
       spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
       spago [ "install", "-p", "follow-instructions", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
 
-    -- Regression test for https://github.com/purescript/spago/pull/1222
-    let gitignores = [".spago", "/.spago", ".spago/**"]
-    for_ gitignores \gitignore ->
-      Spec.it
-        (".gitignore does not affect discovery of transitive deps (" <> gitignore <> ")") \{ spago, fixture, testCwd } -> do
-          FS.copyTree { src: fixture "pedantic/follow-instructions", dst: testCwd }
-          FS.writeTextFile (testCwd </> ".gitignore") gitignore
-          spago [ "uninstall", "effect" ] >>= shouldBeSuccess
-          -- Get rid of "Compiling..." messages
-          spago [ "build" ] >>= shouldBeSuccess
-          editSpagoYaml (addPedanticFlagToSrc)
-          spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
-          spago [ "install", "-p", "follow-instructions", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
+      -- Regression test for https://github.com/purescript/spago/pull/1222
+      -- .gitignore patterns should not affect discovery of transitive deps
+      let gitignores = [ ".spago", "/.spago", ".spago/**" ]
+      for_ gitignores \gitignore -> do
+        -- Re-copy fixture to get a clean state
+        FS.copyTree { src: fixture "pedantic/follow-instructions", dst: testCwd }
+        FS.writeTextFile (testCwd </> ".gitignore") gitignore
+        spago [ "uninstall", "effect" ] >>= shouldBeSuccess
+        spago [ "build" ] >>= shouldBeSuccess
+        editSpagoYaml' (testCwd </> "spago.yaml") addPedanticFlagToSrc
+        spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
+        spago [ "install", "-p", "follow-instructions", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
 
-    Spec.it "#1281 treats extra-packages on the local file system as used" \{ spago, fixture, testCwd } -> do
+    Spec.it "#1281 treats extra-packages on the local file system as used" \{ spagoIn, fixture, testCwd } -> do
       FS.copyTree { src: fixture "pedantic/1281-local-fs-extra-packages", dst: testCwd }
 
-      Paths.chdir $ testCwd </> "packagea"
-      spago [ "build" ] >>= shouldBeSuccess
-      spago [ "build", "--pedantic-packages" ]
+      let spagoInDir dir = spagoIn (testCwd </> dir)
+      spagoInDir "packagea" [ "build" ] >>= shouldBeSuccess
+      spagoInDir "packagea" [ "build", "--pedantic-packages" ]
         >>= shouldBeSuccessErr (fixture "pedantic/1281-local-fs-extra-packages/expected-stderr-used.txt")
 
-      Paths.chdir $ testCwd </> "packagec"
-      spago [ "build" ] >>= shouldBeSuccess
-      spago [ "build", "--pedantic-packages" ]
+      spagoInDir "packagec" [ "build" ] >>= shouldBeSuccess
+      spagoInDir "packagec" [ "build", "--pedantic-packages" ]
         >>= shouldBeFailureErr (fixture "pedantic/1281-local-fs-extra-packages/expected-stderr-unused.txt")
+
+-- | Run the same assertion with both --pedantic-packages flag and pedanticPackages config.
+checkPedantic
+  :: RootPath
+  -> (Array String -> Aff (Either ExecResult ExecResult))
+  -> (Config -> Config)
+  -> (Either ExecResult ExecResult -> Aff Unit)
+  -> Aff Unit
+checkPedantic testCwd spago configTransform assertion = do
+  spago [ "build", "--pedantic-packages" ] >>= assertion
+  editSpagoYaml' (testCwd </> "spago.yaml") configTransform
+  spago [ "build" ] >>= assertion
 
 addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config

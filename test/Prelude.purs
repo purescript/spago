@@ -10,9 +10,12 @@ import Data.Map as Map
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Aff.AVar (AVar)
+import Effect.Aff.AVar as AVar
 import Effect.Class.Console (log)
 import Effect.Class.Console as Console
 import Node.FS.Aff as FS.Aff
+import Node.FS.Sync as FS.Sync
 import Node.Library.Execa (ExecaResult)
 import Node.Platform as Platform
 import Node.Process as Process
@@ -39,20 +42,28 @@ type FixturePath = GlobalPath
 type TestDirs =
   { spago :: Array String -> Aff (Either ExecResult ExecResult)
   , spago' :: StdinConfig -> Array String -> Aff (Either ExecResult ExecResult)
+  , spagoIn :: LocalPath -> Array String -> Aff (Either ExecResult ExecResult)
   , fixture :: RawFilePath -> FixturePath
   , oldCwd :: GlobalPath
   , testCwd :: RootPath
   }
+
+-- | Create a unique temp directory suitable for parallel test execution.
+-- | Uses OS mkdtemp (not timestamp hashing) and resolves symlinks (macOS /tmp -> /private/tmp).
+mkTempRoot :: Aff RootPath
+mkTempRoot = do
+  FS.mkdirp Paths.paths.temp
+  let prefix = Path.toRaw Paths.paths.temp <> "/spago-test-"
+  temp' <- liftEffect $ FS.Sync.mkdtemp prefix
+  resolved <- liftEffect $ FS.Sync.realpath temp'
+  Path.mkRoot (Path.global resolved)
 
 withTempDir :: (TestDirs -> Aff Unit) -> Aff Unit
 withTempDir = Aff.bracket createTempDir cleanupTempDir
   where
   createTempDir = do
     oldCwd <- Paths.cwd
-    temp' <- mkTemp' (Just "spago-test-")
-    FS.mkdirp temp'
-    Paths.chdir temp'
-    temp <- Path.mkRoot =<< Paths.cwd
+    temp <- mkTempRoot
     isDebug <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_DEBUG"
     when isDebug do
       log $ "Running test in " <> Path.quote temp
@@ -61,25 +72,62 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
 
       fixture path = fixturesPath </> path
 
+      nodeArgs = [ "--no-warnings=ExperimentalWarning", Path.toRaw $ oldCwd </> "bin" </> "index.dev.js" ]
+
+      spagoIn :: LocalPath -> Array String -> Aff (Either ExecResult ExecResult)
+      spagoIn dir args =
+        Cmd.exec
+          (Path.global "node")
+          (nodeArgs <> args)
+          $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = Just (Path.toGlobal dir) }
+
       spago' :: StdinConfig -> Array String -> Aff (Either ExecResult ExecResult)
       spago' stdin args =
         Cmd.exec
           (Path.global "node")
-          ([ "--no-warnings=ExperimentalWarning", Path.toRaw $ oldCwd </> "bin" </> "index.dev.js" ] <> args)
-          $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = stdin }
+          (nodeArgs <> args)
+          $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = stdin, cwd = Just (Path.toGlobal temp) }
 
       spago = spago' StdinNewPipe
 
     pure
       { spago'
       , spago
+      , spagoIn
       , oldCwd
       , testCwd: temp
       , fixture
       }
 
-  cleanupTempDir { oldCwd } = do
-    Paths.chdir oldCwd
+  cleanupTempDir _ = pure unit
+
+-- | Per-command mutexes to limit concurrent compiler invocations.
+-- | Each command type (build, test, run, bundle) gets its own AVar Unit lock.
+-- | Two builds can't run concurrently, but a build and a test can.
+type CommandLocks = Map String (AVar Unit)
+
+-- | Wrap an action with the lock for the given command, if one exists.
+withCommandLock :: forall a. CommandLocks -> Array String -> Aff a -> Aff a
+withCommandLock locks args action =
+  case Array.head args >>= flip Map.lookup locks of
+    Just lock -> do
+      AVar.take lock
+      Aff.finally (AVar.put unit lock) action
+    Nothing -> action
+
+-- | Like `withTempDir`, but wraps `spago`/`spagoIn` calls so that
+-- | compiler-triggering commands are serialized per command type.
+withBuildLock :: CommandLocks -> (TestDirs -> Aff Unit) -> Aff Unit
+withBuildLock locks k = withTempDir \dirs ->
+  let
+    lockCmd :: forall a. (Array String -> Aff a) -> Array String -> Aff a
+    lockCmd f args = withCommandLock locks args (f args)
+  in
+    k $ dirs
+      { spago = lockCmd dirs.spago
+      , spago' = \stdin -> lockCmd (dirs.spago' stdin)
+      , spagoIn = \dir -> lockCmd (dirs.spagoIn dir)
+      }
 
 rmRf :: ∀ m path. MonadAff m => IsPath path => path -> m Unit
 rmRf dir = liftAff $ FS.Aff.rm' (toRaw dir) { force: true, recursive: true, maxRetries: 5, retryDelay: 1000 }
@@ -106,20 +154,27 @@ shouldEqualStr v1 v2 =
   let
     renderNonPrinting =
       String.replaceAll (String.Pattern "\r") (String.Replacement "␍")
-      >>> String.replaceAll (String.Pattern "\t") (String.Replacement "␉-->")
+        >>> String.replaceAll (String.Pattern "\t") (String.Replacement "␉-->")
   in
-  when (v1 /= v2) do
-    fail $ Array.intercalate "\n"
-      [ ""
-      , "===== (Actual)"
-      , renderNonPrinting v1
-      , "====="
-      , "  ≠"
-      , "===== (Expected)"
-      , renderNonPrinting v2
-      , "====="
-      , ""
-      ]
+    when (v1 /= v2) do
+      fail $ Array.intercalate "\n"
+        [ ""
+        , "===== (Actual)"
+        , renderNonPrinting v1
+        , "====="
+        , "  ≠"
+        , "===== (Expected)"
+        , renderNonPrinting v2
+        , "====="
+        , ""
+        ]
+
+-- | Normalize path separators and line endings for cross-platform fixture comparison.
+sanitizePlatformOutput :: String -> String
+sanitizePlatformOutput =
+  String.trim
+    >>> String.replaceAll (Pattern "\\") (Replacement "/")
+    >>> String.replaceAll (Pattern "\r\n") (Replacement "\n")
 
 checkFixture :: ∀ path. IsPath path => path -> FixturePath -> Aff Unit
 checkFixture filepath fixturePath = checkFixture' filepath fixturePath identity (shouldEqualStr `on` String.trim)
@@ -266,9 +321,6 @@ writePursFile { moduleName, rest } =
   Array.intercalate "\n" $ Array.cons modNameLine $ rest
   where
   modNameLine = "module " <> moduleName <> " where"
-
-editSpagoYaml :: (Config -> Config) -> Aff Unit
-editSpagoYaml = editSpagoYaml' $ Path.global "spago.yaml"
 
 editSpagoYaml' :: ∀ path. IsPath path => path -> (Config -> Config) -> Aff Unit
 editSpagoYaml' configPath f = do
@@ -421,16 +473,17 @@ assertWarning paths shouldHave stdErr = do
       <> "\n\nStderr was:\n"
       <> stdErr
 
--- | Run a git command in the current directory
-git :: Array String -> Aff Unit
-git = git' Nothing
+-- | Run a git command in a specific directory and return stdout
+gitWithOutput :: forall path. IsPath path => path -> Array String -> Aff String
+gitWithOutput cwd args = do
+  res <- Cmd.exec (Path.global "git") args
+    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = Just (Path.toGlobal cwd) })
+  res # shouldBeSuccess
+  pure $ Cmd.getStdout res
 
 -- | Run a git command in a specific directory
-git' :: Maybe GlobalPath -> Array String -> Aff Unit
-git' cwd args =
-  Cmd.exec (Path.global "git") args
-    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
-    >>= shouldBeSuccess
+git :: forall path. IsPath path => path -> Array String -> Aff Unit
+git cwd args = void $ gitWithOutput cwd args
 
 -- | Create a git repo with a spago.yaml in the test's temp directory.
 -- | Cleanup is automatic when the test's temp directory is removed.
@@ -442,14 +495,34 @@ mkGitRepo testCwd { name, deps } = do
   let repo = testCwd </> ("lib-" <> name)
   FS.mkdirp repo
   let depsYaml = if Array.null deps then "[]" else "\n" <> foldMap (\d -> "    - " <> d <> "\n") deps
-  FS.writeTextFile (repo </> "spago.yaml") $
-    "package:\n  name: " <> name <> "\n  dependencies: " <> depsYaml <> "\nworkspace:\n  packageSet:\n    registry: 0.0.1\n"
+  FS.writeTextFile (repo </> "spago.yaml")
+    $ "package:\n  name: "
+    <> name
+    <> "\n  dependencies: "
+    <> depsYaml
+    <> "\nworkspace:\n  packageSet:\n    registry: 0.0.1\n"
   FS.mkdirp (repo </> "src")
   FS.writeTextFile (repo </> "src/Main.purs") $ "module " <> String.toUpper name <> ".Main where\n"
-  git' (Just $ Path.toGlobal repo) [ "init", "-b", "main" ]
-  git' (Just $ Path.toGlobal repo) [ "config", "user.name", "test" ]
-  git' (Just $ Path.toGlobal repo) [ "config", "user.email", "test@test.com" ]
-  git' (Just $ Path.toGlobal repo) [ "add", "." ]
-  git' (Just $ Path.toGlobal repo) [ "commit", "-m", "initial" ]
+  git repo [ "init", "-b", "main" ]
+  git repo [ "config", "user.name", "test" ]
+  git repo [ "config", "user.email", "test@test.com" ]
+  git repo [ "add", "." ]
+  git repo [ "commit", "-m", "initial" ]
   pure repo
+
+makeSubpackage :: RootPath -> { name :: String, moduleName :: String } -> Aff LocalPath
+makeSubpackage root { name, moduleName } = do
+  let subpackage = root </> name
+  FS.mkdirp (subpackage </> "src")
+  FS.mkdirp (subpackage </> "test")
+  FS.writeTextFile (subpackage </> "src" </> "Main.purs") (Init.srcMainTemplate (moduleName <> ".Main"))
+  FS.writeTextFile (subpackage </> "test" </> "Main.purs") (Init.testMainTemplate (moduleName <> ".Test.Main"))
+  FS.writeYamlFile Config.configCodec (subpackage </> "spago.yaml")
+    ( Init.defaultConfig
+        { name: mkPackageName name
+        , withWorkspace: Nothing
+        , testModuleName: moduleName <> ".Test.Main"
+        }
+    )
+  pure subpackage
 

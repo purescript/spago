@@ -12,51 +12,38 @@ import Test.Spec as Spec
 import Test.Spec.Assertions (shouldNotEqual)
 import Test.Spec.Assertions.String (shouldStartWith)
 
-spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "bundle" do
 
-    Spec.it "bundles into an app (browser)" \{ spago, fixture, testCwd } -> do
+    Spec.it "bundles app and module variants with and without source maps" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
+
+      -- bundles into an app (browser)
       spago [ "bundle", "-v", "--bundle-type", "app", "--outfile", "bundle-app-browser.js" ] >>= shouldBeSuccess
       checkBundle (testCwd </> "bundle-app-browser.js") (fixture "bundle-app-browser.js")
 
-    Spec.it "bundles into an app (node)" \{ spago, fixture, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
+      -- bundles into an app (node)
       spago [ "bundle", "-v", "--bundle-type", "app", "--outfile", "bundle-app-node.js", "--platform", "node" ] >>= shouldBeSuccess
       checkBundle (testCwd </> "bundle-app-node.js") (fixture "bundle-app-node.js")
 
-    Spec.it "bundles into a module" \{ spago, fixture, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      spago [ "build" ] >>= shouldBeSuccess
+      -- bundles into a module
       spago [ "bundle", "--bundle-type=module", "--outfile", "bundle-module.js" ] >>= shouldBeSuccess
       checkBundle (testCwd </> "bundle-module.js") (fixture "bundle-module.js")
 
-    Spec.it "bundles an app with source map (browser)" \{ spago, fixture, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
+      -- bundles an app with source map (browser)
       spago [ "bundle", "-v", "--outfile", "bundle-app-browser-map.js", "--source-maps", "--bundle-type", "app" ] >>= shouldBeSuccess
       checkBundle (testCwd </> "bundle-app-browser-map.js") (fixture "bundle-app-browser-map.js")
       checkFixture (testCwd </> "bundle-app-browser-map.js.map") (fixture "bundle-app-browser-map.js.map")
 
-    Spec.it "bundles an app with source map (node)" \{ spago, fixture, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
+      -- bundles an app with source map (node)
       spago [ "bundle", "-v", "--outfile", "bundle-app-node-map.js", "--source-maps", "--bundle-type", "app", "--platform", "node" ] >>= shouldBeSuccess
       checkBundle (testCwd </> "bundle-app-node-map.js") (fixture "bundle-app-node-map.js")
       checkFixture (testCwd </> "bundle-app-node-map.js.map") (fixture "bundle-app-node-map.js.map")
 
-    Spec.it "bundles a module with source map" \{ spago, fixture, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      spago [ "build" ] >>= shouldBeSuccess
+      -- bundles a module with source map
       spago [ "bundle", "--bundle-type", "module", "--outfile", "bundle-module-map.js", "--source-maps" ] >>= shouldBeSuccess
-
-      checkBundle (testCwd </> "bundle-module-map.js") (fixture "bundle-module-map.js")
-      checkFixture (testCwd </> "bundle-module-map.js.map") (fixture "bundle-module-map.js.map")
-
-    Spec.it "bundles a module with extra esbuild arguments" \{ spago, fixture, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      spago [ "build" ] >>= shouldBeSuccess
-      spago [ "bundle", "--bundle-type", "module", "--outfile", "bundle-module-map.js", "--source-maps" ] >>= shouldBeSuccess
-
       checkBundle (testCwd </> "bundle-module-map.js") (fixture "bundle-module-map.js")
       checkFixture (testCwd </> "bundle-module-map.js.map") (fixture "bundle-module-map.js.map")
 

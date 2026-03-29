@@ -9,8 +9,8 @@ import Spago.FS as FS
 import Test.Spec (Spec)
 import Test.Spec as Spec
 
-spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "errors" do
 
     Spec.it "fails with a spago.yml" \{ spago, fixture, testCwd } -> do
@@ -25,10 +25,12 @@ spec = Spec.around withTempDir do
     Spec.it "prints suggested package names when package is not found" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "root" ] >>= shouldBeSuccess
 
-      ["finder", "binder", "founder"] # traverse_ \name -> do
+      [ "finder", "binder", "founder" ] # traverse_ \name -> do
         FS.mkdirp $ testCwd </> name
-        FS.writeTextFile (testCwd </> name </> "spago.yaml") $
-          "{ package: { name: \"" <> name <> "\", dependencies: [] } }"
+        FS.writeTextFile (testCwd </> name </> "spago.yaml")
+          $ "{ package: { name: \""
+          <> name
+          <> "\", dependencies: [] } }"
 
       spago [ "build", "-p", "inder" ] >>= shouldBeFailureErr (fixture "package-typo-suggestions/1.txt")
       spago [ "build", "-p", "flounder" ] >>= shouldBeFailureErr (fixture "package-typo-suggestions/2.txt")

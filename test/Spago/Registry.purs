@@ -9,7 +9,7 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 
 spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec = Spec.parallel $ Spec.around withTempDir do
   Spec.describe "registry" do
 
     Spec.it "list package sets" \{ spago, fixture } -> do
