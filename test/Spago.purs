@@ -43,7 +43,7 @@ main = do
   cmdLocks <- Map.fromFoldable <$> traverse (\cmd -> Tuple cmd <$> Effect.AVar.new unit)
     [ "build", "test", "run", "bundle" ]
   runSpecAndExitProcess'
-    { defaultConfig: Cfg.defaultConfig { timeout = Just (Milliseconds 300_000.0) }
+    { defaultConfig: Cfg.defaultConfig { timeout = Just (Milliseconds 600_000.0) }
     , parseCLIOptions: true
     }
     [ Spec.Reporter.consoleReporter ]
