@@ -5,8 +5,8 @@ import Test.Prelude
 import Test.Spec (Spec)
 import Test.Spec as Spec
 
-spec :: Spec Unit
-spec = Spec.parallel $ Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "ls" do
 
     Spec.it "direct dependencies" \{ spago, fixture } -> do

@@ -41,7 +41,7 @@ main = do
   -- Per-command locks: one mutex per compiler-triggering command.
   -- Two builds can't run concurrently, but a build and a test can.
   cmdLocks <- Map.fromFoldable <$> traverse (\cmd -> Tuple cmd <$> Effect.AVar.new unit)
-    [ "build", "test", "run", "bundle" ]
+    [ "build", "test", "run", "bundle", "install", "fetch" ]
   runSpecAndExitProcess'
     { defaultConfig: Cfg.defaultConfig { timeout = Just (Milliseconds 600_000.0) }
     , parseCLIOptions: true
@@ -66,7 +66,7 @@ main = do
         Sources.spec
         Install.spec cmdLocks
         Uninstall.spec cmdLocks
-        Ls.spec
+        Ls.spec cmdLocks
         Repl.spec
         Run.spec cmdLocks
         Test.spec cmdLocks
@@ -75,7 +75,7 @@ main = do
         Docs.spec
         Upgrade.spec cmdLocks
         Graph.spec
-        Lock.spec
+        Lock.spec cmdLocks
         Unit.spec
         Errors.spec cmdLocks
         Config.spec
