@@ -21,7 +21,7 @@ globTmpDir m = Aff.bracket make cleanup m
     for_ contents \f -> f =<< Path.mkRoot (base </> name)
   cleanup _ = pure unit
   make = do
-    base <- Path.mkRoot =<< mkTemp' (Just "spago-test-")
+    base <- mkTempRoot
     dir
       ".git"
       [ dir "fruits" [ touch "apple" ] ]
@@ -45,7 +45,7 @@ globTmpDir m = Aff.bracket make cleanup m
     pure base
 
 spec :: Spec Unit
-spec = Spec.around globTmpDir do
+spec = Spec.parallel $ Spec.around globTmpDir do
   let glob root includePatterns = Glob.gitignoringGlob { root, includePatterns, ignorePatterns: [] }
   Spec.describe "glob" do
     Spec.describe "glob behavior" do

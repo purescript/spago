@@ -11,8 +11,8 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 
-spec ∷ Spec Unit
-spec = Spec.around withTempDir do
+spec ∷ CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "uninstall" do
 
     Spec.it "fails when no package was selected" \{ spago, fixture, testCwd } -> do
@@ -40,16 +40,18 @@ spec = Spec.around withTempDir do
         config { package = config.package <#> \p -> p { test = Nothing } }
       spago [ "uninstall", "--test-deps", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-no-test-config.txt")
 
-    Spec.it "warns when packages to uninstall are not declared in source config" \{ spago, fixture } -> do
+    Spec.it "warns on undeclared deps and removes declared deps in both source and test configs" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
+
+      -- warns when packages to uninstall are not declared in source config
       spago [ "uninstall", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-deps-undeclared-src-deps.txt")
 
-    Spec.it "warns when packages to uninstall are not declared in test config" \{ spago, fixture } -> do
-      spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
+      -- warns when packages to uninstall are not declared in test config
+      -- Delete lockfile so the next command regenerates it (matching fixture expectations)
+      FS.unlink (testCwd </> "spago.lock")
       spago [ "uninstall", "--test-deps", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-deps-undeclared-test-deps.txt")
 
-    Spec.it "removes declared packages in source config" \{ spago, fixture, testCwd } -> do
-      spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
+      -- removes declared packages in source config (install then uninstall roundtrip)
       originalConfig <- FS.readTextFile (testCwd </> "spago.yaml")
 
       spago [ "install", "either" ] >>= shouldBeSuccess
@@ -60,14 +62,11 @@ spec = Spec.around withTempDir do
       postUninstallConfig <- FS.readTextFile (testCwd </> "spago.yaml")
       originalConfig `Assert.shouldEqual` postUninstallConfig
 
-    Spec.it "removes declared packages in test config" \{ spago, fixture, testCwd } -> do
-      spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
-      originalConfig <- FS.readTextFile (testCwd </> "spago.yaml")
-
+      -- removes declared packages in test config (install then uninstall roundtrip)
       spago [ "install", "--test-deps", "either" ] >>= shouldBeSuccess
-      postInstallConfig <- FS.readTextFile (testCwd </> "spago.yaml")
-      originalConfig `Assert.shouldNotEqual` postInstallConfig
+      postInstallConfig2 <- FS.readTextFile (testCwd </> "spago.yaml")
+      originalConfig `Assert.shouldNotEqual` postInstallConfig2
 
       spago [ "uninstall", "--test-deps", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-remove-test-deps.txt")
-      postUninstallConfig <- FS.readTextFile (testCwd </> "spago.yaml")
-      originalConfig `Assert.shouldEqual` postUninstallConfig
+      postUninstallConfig2 <- FS.readTextFile (testCwd </> "spago.yaml")
+      originalConfig `Assert.shouldEqual` postUninstallConfig2

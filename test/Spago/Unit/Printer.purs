@@ -16,10 +16,10 @@ spec = do
     Spec.it "renders regular stats with all zeroes when there are no errors or warnings" do
       printDoc (renderVerboseStats initialStats) `shouldEqual`
         joinWith "\n"
-        [ "           Src   Lib   All"
-        , "Warnings     0     0     0"
-        , "Errors       0     0     0"
-        ]
+          [ "           Src   Lib   All"
+          , "Warnings     0     0     0"
+          , "Errors       0     0     0"
+          ]
 
   where
-    printDoc = Dodo.print Dodo.plainText Dodo.twoSpaces
+  printDoc = Dodo.print Dodo.plainText Dodo.twoSpaces

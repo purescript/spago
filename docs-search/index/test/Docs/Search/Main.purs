@@ -14,15 +14,14 @@ import Test.Spec.Runner.Node (runSpecAndExitProcess')
 import Test.Spec.Runner.Node.Config as Config
 import Test.TypeQuery as TypeQuery
 
-testConfig :: Config.TestRunConfig
-testConfig = Config.defaultConfig
-  { timeout = Just (Milliseconds 5_000.0)
-  }
-
 main :: Effect Unit
-main = do
-  config <- Config.fromCommandLine' testConfig Config.commandLineOptionParsers
-  runSpecAndExitProcess' config [ consoleReporter ] mainTest
+main =
+  runSpecAndExitProcess'
+    { defaultConfig: Config.defaultConfig { timeout = Just (Milliseconds 5_000.0) }
+    , parseCLIOptions: true
+    }
+    [ consoleReporter ]
+    mainTest
 
 mainTest :: Spec Unit
 mainTest = do

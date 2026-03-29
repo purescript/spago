@@ -14,7 +14,7 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 
 spec :: Spec Unit
-spec = Spec.describe "unit" do
+spec = Spec.parallel $ Spec.describe "unit" do
   FindFlags.spec
   CheckInjectivity.spec
   Init.spec

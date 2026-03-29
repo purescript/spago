@@ -342,14 +342,22 @@ fetchPackagesToLocalCache packages = do
                     unless (archiveSha == versionMetadata.hash) do
                       die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
                     -- if everything's alright we stash the tar in the global cache
+                    -- Write to a temp file then atomically rename, so parallel processes
+                    -- don't corrupt the archive by writing to the same path simultaneously.
+                    let tempArchivePath = globalCachePackagePath </> (versionString <> ".tar.gz." <> Path.basename tempDir)
                     logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> Path.quote archivePath
-                    FS.writeFile archivePath archiveBuffer
+                    FS.writeFile tempArchivePath archiveBuffer
+                    -- Another process may have already cached this archive
+                    unlessM (FS.exists archivePath) $
+                      FS.moveSync { src: tempArchivePath, dst: archivePath }
                     logDebug $ "Unpacking archive to temp folder: " <> Path.quote tempDir
                     (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
                       Right _ -> pure unit
                       Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
             logDebug $ "Moving extracted file to local cache: " <> Path.quote localPackageLocation
-            FS.moveSync { src: tempDir </> tarInnerFolder, dst: Path.toGlobal localPackageLocation }
+            -- Another parallel process may have already moved this package into the cache
+            unlessM (FS.exists localPackageLocation) $
+              FS.moveSync { src: tempDir </> tarInnerFolder, dst: Path.toGlobal localPackageLocation }
       -- Local package, no work to be done
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
@@ -523,7 +531,9 @@ getGitPackageInLocalCache name package = do
     Git.fetchRepo package tempDir >>= rightOrDie_
 
     logDebug $ "Repo cloned. Moving to " <> Path.quote repoCache
-    FS.moveSync { src: tempDir, dst: Path.toGlobal repoCache }
+    -- Another parallel process may have already cloned this repo
+    unlessM (FS.exists repoCache) $
+      FS.moveSync { src: tempDir, dst: Path.toGlobal repoCache }
 
   ensureRefPresent repoCache = do
     logDebug $ "Verifying ref " <> package.ref
