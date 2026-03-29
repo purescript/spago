@@ -21,6 +21,13 @@ data StdinConfig
   | StdinNewPipe
   | StdinWrite String
 
+-- | Controls how stdout/stderr are connected for child processes
+data StdioConfig
+  = StdioInherit -- ^ Use parent's stream (preserves TTY properties)
+  | StdioPipe -- ^ Create new pipe (captures output but loses TTY)
+
+derive instance Eq StdioConfig
+
 type ExecResult =
   { canceled :: Boolean
   , escapedCommand :: String
@@ -78,6 +85,8 @@ type ExecOptions =
   { pipeStdin :: StdinConfig
   , pipeStdout :: Boolean
   , pipeStderr :: Boolean
+  , stdoutMode :: StdioConfig
+  , stderrMode :: StdioConfig
   , cwd :: Maybe GlobalPath
   , shell :: Boolean
   }
@@ -87,6 +96,8 @@ defaultExecOptions =
   { pipeStdin: StdinNewPipe
   , pipeStdout: true
   , pipeStderr: true
+  , stdoutMode: StdioPipe
+  , stderrMode: StdioPipe
   , cwd: Nothing
   , shell: false
   }
@@ -98,11 +109,17 @@ spawn cmd args opts = liftAff do
       StdinPipeParent -> Just inherit
       StdinWrite _ -> Just pipe
       StdinNewPipe -> Just pipe
+    stdoutOpt = case opts.stdoutMode of
+      StdioInherit -> Just inherit
+      StdioPipe -> Just pipe
+    stderrOpt = case opts.stderrMode of
+      StdioInherit -> Just inherit
+      StdioPipe -> Just pipe
   subprocess <- Execa.execa cmd args _
     { cwd = Path.toRaw <$> opts.cwd
     , stdin = stdinOpt
-    , stdout = Just pipe
-    , stderr = Just pipe
+    , stdout = stdoutOpt
+    , stderr = stderrOpt
     , shell = case opts.shell of
         -- TODO: execa doesn't support the boolean option yet
         true -> Just (unsafeCoerce true)
@@ -113,9 +130,11 @@ spawn cmd args opts = liftAff do
     StdinWrite s | Just { writeUtf8End } <- subprocess.stdin -> writeUtf8End s
     _ -> pure unit
 
-  when (opts.pipeStderr) do
+  -- Note: pipeToParentStdout/Stderr only works when mode is StdioPipe
+  -- When StdioInherit, output goes directly to terminal (no capture needed)
+  when (opts.pipeStderr && opts.stderrMode == StdioPipe) do
     traverse_ _.pipeToParentStderr subprocess.stderr
-  when (opts.pipeStdout) do
+  when (opts.pipeStdout && opts.stdoutMode == StdioPipe) do
     traverse_ _.pipeToParentStdout subprocess.stdout
 
   pure subprocess

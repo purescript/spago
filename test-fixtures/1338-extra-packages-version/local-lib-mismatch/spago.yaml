@@ -1,0 +1,8 @@
+package:
+  name: local-lib-mismatch
+  dependencies: []
+  publish:
+    version: 1.0.0
+    license: MIT
+
+workspace: {}

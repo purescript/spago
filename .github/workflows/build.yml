@@ -56,7 +56,7 @@ jobs:
             ${{ runner.os }}-
 
       - name: Install global NPM packages
-        run: npm i --global purescript@0.15.15 spago@next purs-tidy@latest esbuild@latest
+        run: npm i --global purescript@0.15.15 spago@latest purs-tidy@latest esbuild@latest
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v4
@@ -81,8 +81,19 @@ jobs:
       - name: Bundle docs-search client
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
+      - name: Setup Dev Drive for tests
+        if: runner.os == 'Windows'
+        uses: samypr100/setup-dev-drive@v3
+        with:
+          drive-size: 10GB
+          workspace-copy: true
+          env-mapping: |
+            TEMP,{{ DEV_DRIVE }}/tmp
+            TMP,{{ DEV_DRIVE }}/tmp
+
       - name: Run tests
-        run: node ./bin/bundle.js test
+        working-directory: ${{ runner.os == 'Windows' && env.DEV_DRIVE_WORKSPACE || '.' }}
+        run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'

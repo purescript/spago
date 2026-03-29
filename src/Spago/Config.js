@@ -74,26 +74,69 @@ export function removePackagesFromConfigImpl(doc, isTest, shouldRemove) {
   deps.items = newItems;
 }
 
-export function addRangesToConfigImpl(doc, rangesMap) {
-  const deps = doc.get("package").get("dependencies");
+// Helper to update dependency items with ranges from a map.
+//
+// Dependencies in spago.yaml can be either:
+//   - A scalar (bare package name): `- prelude`
+//   - A map (name + range/version): `- prelude: ">=6.0.0 <7.0.0"`
+//
+// This function updates dependencies with ranges from rangesMap:
+// - Scalars are converted to maps if a range is found
+// - Existing maps are updated with the new range if one is provided
+// - Dependencies not in rangesMap are preserved unchanged
+function updateDepsWithRanges(doc, deps, rangesMap) {
+  if (!deps || !deps.items) return;
 
-  // if a dependency is an object then we know it has a range, otherwise we
-  // look up in the map of ranges and add it from there.
   let newItems = [];
   for (const el of deps.items) {
-    // If it's not a scalar then we have a version range, let it be
     if (Yaml.isMap(el)) {
-      newItems.push(el);
-    }
-    if (Yaml.isScalar(el)) {
-      let newEl = new Map();
-      newEl.set(el.value, rangesMap[el.value]);
-      newItems.push(doc.createNode(newEl));
+      // Already has a version range - check if we have an updated range
+      const packageName = el.items[0].key.value;
+      const range = rangesMap[packageName];
+      if (range) {
+        // Update with new range
+        let newEl = new Map();
+        newEl.set(packageName, range);
+        newItems.push(doc.createNode(newEl));
+      } else {
+        // No update provided, keep unchanged
+        newItems.push(el);
+      }
+    } else if (Yaml.isScalar(el)) {
+      // Bare package name - look up range in the map
+      const range = rangesMap[el.value];
+      if (range) {
+        // Found a range, convert scalar to map format
+        let newEl = new Map();
+        newEl.set(el.value, range);
+        newItems.push(doc.createNode(newEl));
+      } else {
+        // No range provided for this package, keep the original scalar.
+        newItems.push(el);
+      }
     }
   }
 
   newItems.sort();
   deps.items = newItems;
+}
+
+// Add version ranges to package.dependencies
+export function addRangesToConfigImpl(doc, rangesMap) {
+  const deps = doc.get("package").get("dependencies");
+  updateDepsWithRanges(doc, deps, rangesMap);
+}
+
+// Add version ranges to package.test.dependencies.
+export function addTestRangesToConfigImpl(doc, rangesMap) {
+  const test = doc.get("package").get("test");
+  // in the above variant we don't test for the existence of dependencies, because
+  // they must always exist. We are not guaranteed the existence of the test section,
+  // so we need an additional check here
+  if (!test) return;
+
+  const deps = test.get("dependencies");
+  updateDepsWithRanges(doc, deps, rangesMap);
 }
 
 // Note: this function assumes a few things:

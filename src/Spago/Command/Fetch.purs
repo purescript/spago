@@ -7,6 +7,7 @@ module Spago.Command.Fetch
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
   , getWorkspacePackageDeps
+  , getWorkspaceTransitiveDeps
   , fetchPackagesToLocalCache
   , run
   , toAllDependencies
@@ -25,6 +26,7 @@ import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
 import Data.Either as Either
 import Data.FunctorWithIndex (mapWithIndex)
+import Data.Profunctor.Strong ((&&&))
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.List as List
@@ -160,12 +162,9 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
 
   local (_ { workspace = workspace }) do
     -- We compute the transitive deps for all the packages in the workspace, but keep them
-    -- split by package - we need all of them so we can stash them in the lockfile, but we
+    -- split by package. We need all of them for the lockfile's workspace entries, but we
     -- are going to only download the ones that we need to, if e.g. there's a package selected
-    dependencies <- traverse getTransitiveDeps
-      $ Map.fromFoldable
-      $ map (\p -> Tuple p.package.name p)
-      $ Config.getWorkspacePackages workspace.packageSet
+    dependencies <- getWorkspaceTransitiveDeps
 
     for_ installingPackagesData \{ configPath, yamlDoc, actualPackagesToInstall } -> do
       let
@@ -217,18 +216,38 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
           pure $ Map.union supportDeps $ Map.union deps.test deps.core
 
     -- then for every package we have we try to download it, and copy it in the local cache
-    logInfo "Downloading dependencies..."
+    { offline } <- ask
+    logInfo case offline of
+      Offline -> "Checking dependencies..."
+      _ -> "Downloading dependencies..."
     fetchPackagesToLocalCache depsToFetch
 
     -- We return the dependencies, going through the lockfile write if we need to
     -- (we return them from inside there because we need to update the commit hashes)
     case workspace.packageSet.lockfile of
       Right _lockfile -> pure dependencies
-      Left reason -> writeNewLockfile reason dependencies
+      Left reason -> do
+        -- When generating a lockfile, we need ALL git packages to be fetched so we can
+        -- get their commit hashes. If a package is selected, depsToFetch only includes
+        -- that package's deps, but the lockfile needs all packages.
+        let allDeps = toAllDependencies allTransitiveDeps
+        when (Map.keys allDeps /= Map.keys depsToFetch) do
+          fetchPackagesToLocalCache allDeps
+        writeNewLockfile reason dependencies
 
 fetchPackagesToLocalCache :: ∀ a. Map PackageName Package -> Spago (FetchEnv a) Unit
 fetchPackagesToLocalCache packages = do
-  { offline } <- ask
+  { offline, workspace } <- ask
+  -- Build a map of expected integrities from the lockfile for verification
+  let
+    lockfileIntegrities :: Map (Tuple PackageName Version) Sha256
+    lockfileIntegrities = case workspace.packageSet.lockfile of
+      Left _ -> Map.empty
+      Right lockfile -> Map.fromFoldable $ Array.mapMaybe extractRegistryIntegrity $ Map.toUnfoldable lockfile.packages
+      where
+      extractRegistryIntegrity = case _ of
+        Tuple name (FromRegistry { version, integrity }) -> Just $ Tuple (Tuple name version) integrity
+        _ -> Nothing
   -- Before starting to fetch packages we build a Map of AVars to act as locks for each git location.
   -- This is so we don't have two threads trying to clone the same repo at the same time.
   gitLocks <- liftAff $ map (Map.fromFoldable <<< List.catMaybes) $ for (Map.values packages) case _ of
@@ -257,6 +276,17 @@ fetchPackagesToLocalCache packages = do
           Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
           Right versionMetadata -> do
             logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
+            -- Verify that the lockfile integrity matches the registry metadata
+            case Map.lookup (Tuple name v) lockfileIntegrities of
+              Just expectedIntegrity | expectedIntegrity /= versionMetadata.hash ->
+                logWarn $ Array.intercalate "\n"
+                  [ "Package " <> packageVersion <> " has a different hash in the lockfile"
+                  , "  (" <> Sha256.print expectedIntegrity <> ")"
+                  , "than in the registry metadata"
+                  , "  (" <> Sha256.print versionMetadata.hash <> ")."
+                  , "This shouldn't really happen, see here for further details: https://github.com/purescript/spago/pull/1360"
+                  ]
+              _ -> pure unit
             -- then check if we have a tarball cached. If not, download it
             let globalCachePackagePath = Paths.globalCachePath </> "packages" </> PackageName.print name
             let archivePath = globalCachePackagePath </> (versionString <> ".tar.gz")
@@ -312,14 +342,22 @@ fetchPackagesToLocalCache packages = do
                     unless (archiveSha == versionMetadata.hash) do
                       die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
                     -- if everything's alright we stash the tar in the global cache
+                    -- Write to a temp file then atomically rename, so parallel processes
+                    -- don't corrupt the archive by writing to the same path simultaneously.
+                    let tempArchivePath = globalCachePackagePath </> (versionString <> ".tar.gz." <> Path.basename tempDir)
                     logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> Path.quote archivePath
-                    FS.writeFile archivePath archiveBuffer
+                    FS.writeFile tempArchivePath archiveBuffer
+                    -- Another process may have already cached this archive
+                    unlessM (FS.exists archivePath) $
+                      FS.moveSync { src: tempArchivePath, dst: archivePath }
                     logDebug $ "Unpacking archive to temp folder: " <> Path.quote tempDir
                     (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
                       Right _ -> pure unit
                       Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
             logDebug $ "Moving extracted file to local cache: " <> Path.quote localPackageLocation
-            FS.moveSync { src: tempDir </> tarInnerFolder, dst: Path.toGlobal localPackageLocation }
+            -- Another parallel process may have already moved this package into the cache
+            unlessM (FS.exists localPackageLocation) $
+              FS.moveSync { src: tempDir </> tarInnerFolder, dst: Path.toGlobal localPackageLocation }
       -- Local package, no work to be done
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
@@ -417,17 +455,8 @@ writeNewLockfile reason allTransitiveDeps = do
         dependencies <- corePackageDepsOrEmpty packageName package
         pure $ FromPath { path, dependencies }
 
-    -- For every package that is a `WorkspacePackage`, we just pick up all
-    -- transitive core and test dependencies of that package from
-    -- `allTransitiveDeps` and stick them into `core { build_plan }` and
-    -- `test { build_plan }` respectively.
     workspacePackageLockEntries = Map.fromFoldable do
-      name /\ package <- Config.workspacePackageToLockfilePackage <$> Config.getWorkspacePackages workspace.packageSet
-      let deps = allTransitiveDeps # Map.lookup name # fromMaybe { core: Map.empty, test: Map.empty }
-      pure $ name /\ package
-        { core { build_plan = Map.keys deps.core }
-        , test { build_plan = Map.keys deps.test }
-        }
+      Config.workspacePackageToLockfilePackage <$> Config.getWorkspacePackages workspace.packageSet
 
   -- For every non-workspace package, we convert it to its respective type of
   -- lockfile entry via `packageToLockEntry`.
@@ -502,7 +531,9 @@ getGitPackageInLocalCache name package = do
     Git.fetchRepo package tempDir >>= rightOrDie_
 
     logDebug $ "Repo cloned. Moving to " <> Path.quote repoCache
-    FS.moveSync { src: tempDir, dst: Path.toGlobal repoCache }
+    -- Another parallel process may have already cloned this repo
+    unlessM (FS.exists repoCache) $
+      FS.moveSync { src: tempDir, dst: Path.toGlobal repoCache }
 
   ensureRefPresent repoCache = do
     logDebug $ "Verifying ref " <> package.ref
@@ -530,21 +561,29 @@ getPackageDependencies packageName package = case package of
     maybeManifest <- Registry.getManifestFromIndex packageName v
     pure $ maybeManifest <#> \(Manifest m) -> { core: m.dependencies, test: Map.empty }
   GitPackage p -> do
-    -- Note: we get the package in local cache nonetheless,
-    -- so we have guarantees about being able to fetch it
-    { rootPath } <- ask
-    let packageLocation = Config.getLocalPackageLocation rootPath packageName package
-    unlessM (FS.exists packageLocation) do
-      getGitPackageInLocalCache packageName p
     case p.dependencies of
-      Just (Dependencies dependencies) ->
-        pure $ Just { core: map (fromMaybe Config.widestRange) dependencies, test: Map.empty }
+      -- if dependencies are declared, we can use them directly without cloning.
+      -- the package will be fetched later in fetchPackagesToLocalCache.
+      Just (Dependencies dependencies) -> do
+        -- when offline, verify the package is cached before proceeding
+        { offline, rootPath } <- ask
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName (GitPackage p)
+        when (offline == Offline) do
+          unlessM (FS.exists packageLocation) do
+            die $ "Package '" <> PackageName.print packageName <> "' is not in the local cache, and Spago is running in offline mode - can't make progress."
+        pure $ Just { core: map Config.constraintToRange dependencies, test: Map.empty }
+      -- if the dependencies are not declared, then we need to clone the repo
+      -- to look at the package manifest inside
       Nothing -> do
+        { rootPath } <- ask
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName package
+        unlessM (FS.exists packageLocation) do
+          getGitPackageInLocalCache packageName p
         readLocalDependencies $ Path.toGlobal $ maybe packageLocation (packageLocation </> _) p.subdir
   LocalPackage p -> do
     readLocalDependencies $ Path.global p.path
   WorkspacePackage p ->
-    pure $ Just $ (map (fromMaybe Config.widestRange) <<< unwrap) `onEachEnv` getWorkspacePackageDeps p
+    pure $ Just $ (map Config.constraintToRange <<< unwrap) `onEachEnv` getWorkspacePackageDeps p
   where
   -- try to see if the package has a spago config, and if it's there we read it
   readLocalDependencies :: GlobalPath -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
@@ -553,8 +592,8 @@ getPackageDependencies packageName package = case package of
     Config.readConfig (configLocation </> "spago.yaml") >>= case _ of
       Right { yaml: { package: Just { dependencies: Dependencies deps, test } } } ->
         pure $ Just
-          { core: fromMaybe Config.widestRange <$> deps
-          , test: fromMaybe Config.widestRange <$> (test <#> _.dependencies <#> unwrap # fromMaybe Map.empty)
+          { core: Config.constraintToRange <$> deps
+          , test: Config.constraintToRange <$> (test <#> _.dependencies <#> unwrap # fromMaybe Map.empty)
           }
       Right _ -> die
         [ "Read the configuration at path " <> Path.quote configLocation
@@ -583,6 +622,17 @@ type TransitiveDepsResult =
       }
   }
 
+-- | Compute transitive dependencies for all workspace packages.
+-- | This is used by multiple commands (fetch, uninstall) that need
+-- | to gather transitive deps for the entire workspace.
+getWorkspaceTransitiveDeps :: forall a. Spago (FetchEnv a) PackageTransitiveDeps
+getWorkspaceTransitiveDeps = do
+  { workspace } <- ask
+  traverse getTransitiveDeps
+    $ Map.fromFoldable
+    $ map (\p -> Tuple p.package.name p)
+    $ Config.getWorkspacePackages workspace.packageSet
+
 -- | For a given workspace package, returns a list of all its transitive
 -- | dependencies, but seperately for core and test.
 -- |
@@ -601,30 +651,62 @@ type TransitiveDepsResult =
 -- | workspace is using.
 getTransitiveDeps :: forall a. Config.WorkspacePackage -> Spago (FetchEnv a) (ByEnv PackageMap)
 getTransitiveDeps workspacePackage = do
-  let depsRanges = (map (fromMaybe Config.widestRange) <<< unwrap) `onEachEnv` getWorkspacePackageDeps workspacePackage
+  let depsRanges = (map Config.constraintToRange <<< unwrap) `onEachEnv` getWorkspacePackageDeps workspacePackage
   { workspace } <- ask
   case workspace.packageSet.lockfile of
-    -- If we have a lockfile we can just use that - we don't need build a plan, since we store it for every workspace
-    -- package, so we can just filter out the packages we need.
+    -- If we have a lockfile we can compute transitive deps from the lockfile data
     Right lockfile -> do
       case Map.lookup workspacePackage.package.name lockfile.workspace.packages of
         Nothing ->
           die $ "Package " <> PackageName.print workspacePackage.package.name <> " not found in lockfile"
         Just envs ->
           pure
-            { core: fromBuildPlan envs.core.build_plan
-            , test: fromBuildPlan envs.test.build_plan
+            { core: computeTransitiveDeps envs.core.dependencies
+            , test: computeTransitiveDeps envs.test.dependencies
             }
           where
-          fromBuildPlan bp = Map.union otherPackages workspacePackagesWeNeed
+          -- Note: this transitive closure logic is the same as the one that happens
+          -- in the Left branch, where we compute the package-set-based plan with
+          -- getTransitiveDepsFromPackageSet.
+          -- We could try to extract the overall logic from there, but we have instead
+          -- reimplemented it here since it's a pure traversal with no IO (since we
+          -- fetch dependencies as we compute the plan there), nor error handling
+          -- (cycles, missing packages), since all dependencies data in the lockfile
+          -- is pre-computed and known to be correct.
+          allWorkspacePackages = Map.fromFoldable $ (_.package.name &&& WorkspacePackage) <$> Config.getWorkspacePackages workspace.packageSet
+
+          -- Get direct dependencies of a package from the lockfile
+          getDeps :: PackageName -> Set PackageName
+          getDeps name = case Map.lookup name lockfile.workspace.packages of
+            Just pkg -> Set.fromFoldable $ Map.keys $ unwrap pkg.core.dependencies
+            Nothing -> Set.fromFoldable $ case Map.lookup name lockfile.packages of
+              Just (FromPath { dependencies }) -> dependencies
+              Just (FromGit { dependencies }) -> dependencies
+              Just (FromRegistry { dependencies }) -> dependencies
+              Nothing -> []
+
+          transitiveClosure :: Set PackageName -> Set PackageName
+          transitiveClosure initial = go initial initial
             where
-            allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
+            go seen new
+              | Set.isEmpty new = seen
+              | otherwise =
+                  let
+                    discovered = foldMap getDeps new `Set.difference` seen
+                  in
+                    go (seen <> discovered) discovered
 
-            isInBuildPlan :: forall v. PackageName -> v -> Boolean
-            isInBuildPlan name _package = Set.member name bp
+          computeTransitiveDeps :: Dependencies -> PackageMap
+          computeTransitiveDeps deps =
+            let
+              transitiveDeps = transitiveClosure $ Set.fromFoldable $ Map.keys $ unwrap deps
 
-            workspacePackagesWeNeed = Map.filterWithKey isInBuildPlan allWorkspacePackages
-            otherPackages = map fromLockEntry $ Map.filterWithKey isInBuildPlan lockfile.packages
+              isInTransitiveDeps :: forall v. PackageName -> v -> Boolean
+              isInTransitiveDeps name _ = Set.member name transitiveDeps
+            in
+              Map.union
+                (Map.filterWithKey isInTransitiveDeps allWorkspacePackages)
+                (map fromLockEntry $ Map.filterWithKey isInTransitiveDeps lockfile.packages)
 
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
     Left _ -> case workspace.packageSet.buildType of
@@ -710,13 +792,21 @@ getTransitiveDeps workspacePackage = do
 getTransitiveDepsFromRegistry :: forall a. Map PackageName Range -> PackageMap -> Spago (FetchEnv a) (Map PackageName Version)
 getTransitiveDepsFromRegistry depsRanges extraPackages = do
   let
+    -- Widen ranges for non-registry extra packages (local/git/workspace overrides).
+    widenIfExtra :: Map PackageName Range -> Map PackageName Range
+    widenIfExtra = mapWithIndex \name range ->
+      case Map.lookup name extraPackages of
+        Just (RegistryVersion _) -> range
+        Just _ -> Config.widestRange
+        Nothing -> range
+
     loader :: PackageName -> Spago (FetchEnv a) (Map Version (Map PackageName Range))
     loader packageName = do
       -- First look up in the extra packages, as they are the workspace ones, and overrides
       case Map.lookup packageName extraPackages of
         Just p -> do
           deps <- getPackageDependencies packageName p
-          let coreDeps = deps <#> _.core # fromMaybe Map.empty
+          let coreDeps = widenIfExtra $ deps <#> _.core # fromMaybe Map.empty
           pure $ Map.singleton (getVersionFromPackage p) coreDeps
         Nothing -> do
           maybeMetadata <- Registry.getMetadata packageName
@@ -726,10 +816,26 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
               Left _err -> []
           map (Map.fromFoldable :: Array _ -> Map _ _) $ for versions \v -> do
             maybeManifest <- Registry.getManifestFromIndex packageName v
-            let deps = fromMaybe Map.empty $ map (_.dependencies <<< unwrap) maybeManifest
+            let deps = widenIfExtra $ fromMaybe Map.empty $ map (_.dependencies <<< unwrap) maybeManifest
             pure (Tuple v deps)
 
-  maybePlan <- Registry.Solver.loadAndSolve loader depsRanges
+  -- Warn when a non-registry extra package's version doesn't match the declared constraint
+  for_ (Map.toUnfoldable (Map.intersectionWith Tuple depsRanges extraPackages) :: Array _)
+    \(Tuple name (Tuple range pkg)) -> case pkg of
+      RegistryVersion _ -> pure unit
+      _ -> do
+        maybeVersion <- extraPackageVersion pkg
+        case maybeVersion of
+          Just version | not (Range.includes range version) ->
+            logWarn $ "Extra package " <> PackageName.print name <> " has version "
+              <> Version.print version
+              <> ", which doesn't satisfy constraint "
+              <> Range.print range
+          _ -> pure unit
+
+  let widenedDepsRanges = widenIfExtra depsRanges
+
+  maybePlan <- Registry.Solver.loadAndSolve loader widenedDepsRanges
 
   case maybePlan of
     Left errs -> die
@@ -828,6 +934,19 @@ getVersionFromPackage :: Package -> Version
 getVersionFromPackage = case _ of
   RegistryVersion v -> v
   _ -> unsafeFromRight $ Version.parse "0.0.0"
+
+-- | Extract the version from a non-registry package's config if available.
+extraPackageVersion :: forall a. Package -> Spago (FetchEnv a) (Maybe Version)
+extraPackageVersion = case _ of
+  RegistryVersion v -> pure $ Just v
+  WorkspacePackage wp -> pure $ wp.package.publish <#> _.version
+  LocalPackage p -> do
+    result <- Config.readConfig (Path.global p.path </> "spago.yaml")
+    pure $ case result of
+      Right { yaml: { package: Just { publish: Just { version } } } } -> Just version
+      _ -> Nothing
+  -- Git packages would require cloning to read their config, so no version warning is possible.
+  GitPackage _ -> pure Nothing
 
 notInPackageSetError :: PackageName -> TransitiveDepsResult -> TransitiveDepsResult
 notInPackageSetError dep result = result

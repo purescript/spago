@@ -135,14 +135,29 @@ noColor =
         <> O.help "Force logging without ANSI color escape sequences"
     )
 
-offline :: Parser OnlineStatus
-offline =
+offlineFlag :: Parser OnlineStatus
+offlineFlag =
   O.flag
     Online
     Offline
     ( O.long "offline"
         <> O.help "Do not attempt to use the network. Warning: this will fail if you don't have the necessary dependencies already cached"
     )
+
+refreshFlag :: Parser Boolean
+refreshFlag =
+  O.switch
+    ( O.long "refresh"
+        <> O.help "Force refresh of the Registry, bypassing the cache"
+    )
+
+offline :: Parser OnlineStatus
+offline = combineOfflineRefresh <$> offlineFlag <*> refreshFlag
+  where
+  combineOfflineRefresh offlineStatus refresh = case offlineStatus, refresh of
+    Offline, _ -> Offline
+    _, true -> OnlineRefreshRegistry
+    _, false -> offlineStatus
 
 json :: Parser Boolean
 json =

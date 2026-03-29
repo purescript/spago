@@ -1,19 +1,15 @@
 module Test.Spago.Publish
   ( doTheGitThing
   , spec
-  )
-  where
+  ) where
 
 import Test.Prelude
 
-import Data.String as String
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags as RF
 import Node.Platform as Platform
 import Node.Process as Process
-import Spago.Cmd as Cmd
 import Spago.FS as FS
-import Spago.Path as Path
 import Test.Spec (Spec)
 import Test.Spec as Spec
 
@@ -21,14 +17,14 @@ spec :: Spec Unit
 spec = Spec.around withTempDir do
   Spec.describe "publish" do
 
-    Spec.it "fails if the version bounds are not specified" \{ spago, fixture } -> do
+    Spec.it "fails if the version bounds or publish config are not specified" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
+
+      -- Fails when version bounds are missing
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/no-bounds.txt")
 
-    Spec.it "fails if the publish config is not specified" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
-      spago [ "build" ] >>= shouldBeSuccess
+      -- After adding ranges, fails when publish config is missing
       spago [ "fetch", "--ensure-ranges" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/no-config.txt")
 
@@ -44,7 +40,7 @@ spec = Spec.around withTempDir do
       FS.unlink $ testCwd </> "spago.yaml"
       FS.copyFile { src: fixture "publish/basic.yaml", dst: testCwd </> "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr case Process.platform of
         Just Platform.Win32 -> fixture "publish/main-win.txt"
         _ -> fixture "publish/main.txt"
@@ -54,14 +50,14 @@ spec = Spec.around withTempDir do
       FS.mkdirp $ testCwd </> "src"
       FS.copyFile { src: fixture "publish/basic.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
-      git [ "remote", "set-url", "origin", "git@github.com:purescript/bbb.git" ] -- TODO check this is a Right?
+      doTheGitThing testCwd
+      git testCwd [ "remote", "set-url", "origin", "git@github.com:purescript/bbb.git" ]
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/invalid-location.txt")
 
     Spec.it "fails if a core dependency is not in the registry" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/extra-package-core", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/extra-package-core-dependency.txt")
 
@@ -70,7 +66,7 @@ spec = Spec.around withTempDir do
       FS.mkdirp $ testCwd </> "src"
       FS.copyFile { src: fixture "publish/basic.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       -- It will fail because it can't hit the registry, but the fixture will check that everything else is ready
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/ready.txt")
@@ -78,15 +74,18 @@ spec = Spec.around withTempDir do
     Spec.it "allows to publish with a test dependency not in the registry" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/extra-package-test", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/ready.txt")
 
     Spec.it "#1307 allows other non-published projects to reference local project in the workspace" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/1307-publish-dependencies", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "fetch" ] >>= shouldBeSuccess
+      -- Refresh the registry cache timestamp because Windows CI is slow enough
+      -- that it can go stale (>15min) between earlier tests and this one
+      spago [ "registry", "package-sets" ] >>= shouldBeSuccess
       spago [ "publish", "-p", "root", "--offline" ] >>= shouldBeFailureErr (fixture "publish/1307-publish-dependencies/expected-stderr.txt")
 
     Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture, testCwd } -> do
@@ -95,11 +94,7 @@ spec = Spec.around withTempDir do
           { stdoutFile: Nothing
           , stderrFile: Just file
           , result: isLeft
-          , sanitize:
-              String.trim
-                >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
-                >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
-                >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
+          , sanitize: sanitizePlatformOutput >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
           }
 
         -- We have to ignore lines like "[1 of 3] Compiling Effect.Console" when
@@ -112,7 +107,7 @@ spec = Spec.around withTempDir do
 
       FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "fetch" ] >>= shouldBeSuccess
 
       -- The local `spago.yaml` specifies `console: 6.0.0` in `extraPackages`,
@@ -140,7 +135,7 @@ spec = Spec.around withTempDir do
         prepareProject spago fixture testCwd = do
           FS.copyTree { src: fixture "publish/1060-autofill-location/project", dst: testCwd }
           spago [ "build" ] >>= shouldBeSuccess
-          doTheGitThing
+          doTheGitThing testCwd
           spago [ "fetch" ] >>= shouldBeSuccess
 
       Spec.it "happens for root package" \{ fixture, spago, testCwd } -> do
@@ -162,7 +157,7 @@ spec = Spec.around withTempDir do
 
       Spec.it "errors out when not a GitHub remote" \{ fixture, spago, testCwd } -> do
         prepareProject spago fixture testCwd
-        git [ "remote", "set-url", "origin", "https://not.git-hub.net/foo/bar.git" ]
+        git testCwd [ "remote", "set-url", "origin", "https://not.git-hub.net/foo/bar.git" ]
         spago [ "publish", "-p", "aaa", "--offline" ] >>=
           shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-non-github/expected-stderr.txt")
         checkFixture (testCwd </> "spago.yaml")
@@ -170,8 +165,8 @@ spec = Spec.around withTempDir do
 
       Spec.it "prints error when no origin remote" \{ fixture, spago, testCwd } -> do
         prepareProject spago fixture testCwd
-        git [ "remote", "remove", "origin" ]
-        git [ "remote", "add", "upstream", "git@github.com:foo/bar.git" ]
+        git testCwd [ "remote", "remove", "origin" ]
+        git testCwd [ "remote", "add", "upstream", "git@github.com:foo/bar.git" ]
         spago [ "publish", "-p", "aaa", "--offline" ] >>=
           shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-no-origin/expected-stderr.txt")
         checkFixture (testCwd </> "spago.yaml")
@@ -180,27 +175,18 @@ spec = Spec.around withTempDir do
     Spec.it "#1109 fails if the checked out git tag does not match the publish config's version" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/1109-tag-mismatch", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
+      doTheGitThing testCwd
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/1109-tag-mismatch/expected-stderr.txt")
 
-
-doTheGitThing :: Aff Unit
-doTheGitThing = do
-  git [ "init" ]
-  git [ "config", "user.name", "test-user" ]
-  git [ "config", "user.email", "test-user@aol.com" ]
-  git [ "config", "commit.gpgSign", "false" ]
-  git [ "config", "tag.gpgSign", "false" ]
-  git [ "add", "." ]
-  git [ "commit", "-m", "first" ]
-  git [ "tag", "v0.0.1" ]
-  git [ "remote", "add", "origin", "git@github.com:purescript/aaa.git" ]
-
-git :: Array String -> Aff Unit
-git = git' Nothing
-
-git' :: Maybe GlobalPath -> Array String -> Aff Unit
-git' cwd args =
-  Cmd.exec (Path.global "git") args
-    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
-    >>= shouldBeSuccess
+doTheGitThing :: RootPath -> Aff Unit
+doTheGitThing root = do
+  let g = git root
+  g [ "init" ]
+  g [ "config", "user.name", "test-user" ]
+  g [ "config", "user.email", "test-user@aol.com" ]
+  g [ "config", "commit.gpgSign", "false" ]
+  g [ "config", "tag.gpgSign", "false" ]
+  g [ "add", "." ]
+  g [ "commit", "-m", "first" ]
+  g [ "tag", "v0.0.1" ]
+  g [ "remote", "add", "origin", "git@github.com:purescript/aaa.git" ]

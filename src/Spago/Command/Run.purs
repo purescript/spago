@@ -1,6 +1,7 @@
 module Spago.Command.Run
   ( getNode
   , run
+  , encodeFileUrlPath
   , RunEnv
   , Node
   , RunOptions
@@ -12,6 +13,9 @@ import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
 import Data.Map as Map
+import Data.String as String
+import Data.String.CodeUnits as SCU
+import JSURI (encodeURIComponent)
 import Node.FS.Perms as Perms
 import Registry.Version as Version
 import Spago.Cmd as Cmd
@@ -46,6 +50,26 @@ type RunOptions =
 
 type Node = { cmd :: GlobalPath, version :: Version }
 
+-- | Encode a file path for use in a file:// URL.
+-- | Encodes special characters (spaces, apostrophes, etc.) but preserves
+-- | Windows drive letters (e.g., "C:") since encoding the colon breaks URLs.
+encodeFileUrlPath :: String -> String
+encodeFileUrlPath str =
+  String.split (String.Pattern "/") str
+    # map encodeSegment
+    # String.joinWith "/"
+  where
+  encodeSegment seg
+    | isWindowsDrive seg = seg
+    | otherwise = fromMaybe seg (encodeURIComponent seg)
+
+  -- Windows drive letter: single ASCII letter followed by colon (e.g., "C:", "D:")
+  isWindowsDrive seg = case SCU.toCharArray seg of
+    [ letter, ':' ] -> isAsciiLetter letter
+    _ -> false
+
+  isAsciiLetter c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+
 nodeVersion :: forall a. Spago (LogEnv a) Version
 nodeVersion =
   Cmd.exec (Path.global "node") [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
@@ -68,7 +92,12 @@ getNode = do
 run :: forall a. Spago (RunEnv a) Unit
 run = do
   { workspace, node, runOptions: opts, dependencies, selected, rootPath } <- ask
-  let execOptions = Cmd.defaultExecOptions { pipeStdin = Cmd.StdinPipeParent }
+  let
+    execOptions = Cmd.defaultExecOptions
+      { pipeStdin = Cmd.StdinPipeParent
+      , stdoutMode = Cmd.StdioInherit -- Preserve TTY properties for child process
+      , stderrMode = Cmd.StdioInherit -- Preserve TTY properties for child process
+      }
 
   case workspace.backend of
     Nothing -> do
@@ -86,7 +115,7 @@ run = do
         nodeContents =
           Array.fold
             [ "import { main } from 'file://"
-            , Path.toRaw (withForwardSlashes absOutput)
+            , encodeFileUrlPath $ Path.toRaw (withForwardSlashes absOutput)
             , "/"
             , opts.moduleName
             , "/"
@@ -99,7 +128,11 @@ run = do
       let
         globs = Build.getBuildGlobs
           { rootPath
-          , dependencies: Fetch.toAllDependencies dependencies
+          , dependencies:
+              let
+                { core, test } = unsafeFromJust $ Map.lookup selected.package.name dependencies
+              in
+                Map.union core test
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true

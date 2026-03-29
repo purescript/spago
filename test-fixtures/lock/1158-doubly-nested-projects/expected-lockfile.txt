@@ -6,25 +6,19 @@
         "core": {
           "dependencies": [
             "prelude"
-          ],
-          "build_plan": [
-            "prelude"
           ]
         },
         "test": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         }
       },
       "root": {
         "path": "./",
         "core": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         },
         "test": {
-          "dependencies": [],
-          "build_plan": []
+          "dependencies": []
         }
       }
     },
@@ -492,7 +486,7 @@
     "prelude": {
       "type": "registry",
       "version": "6.0.1",
-      "integrity": "sha256-o8p6SLYmVPqzXZhQFd2hGAWEwBoXl1swxLG/scpJ0V0=",
+      "integrity": "sha256-qicw3g9AkjIxyVp73o1dF9BiTCMWouPk9rYe6AASBCU=",
       "dependencies": []
     }
   }

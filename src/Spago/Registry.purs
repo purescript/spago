@@ -21,7 +21,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.JSON as CJ
 import Data.DateTime (DateTime)
-import Data.DateTime (diff) as DateTime
+import Data.DateTime (adjust, diff) as DateTime
 import Data.Formatter.DateTime (format) as DateTime
 import Data.Map as Map
 import Data.Set as Set
@@ -172,9 +172,9 @@ getRegistryFns registryBox registryLock = do
     -- we keep track of how old the latest pull was - if the last pull was recent enough
     -- we just move on, otherwise run the fibers
     { db, offline } <- ask
-    fetchingFreshRegistry <- shouldFetchRegistryRepos db
+    fetchingFreshRegistry <- shouldFetchRegistryRepos offline db
     -- we also check if we need to bypass this cache (for when we need the freshest data)
-    when (fetchingFreshRegistry || offline == OnlineBypassCache) do
+    when (fetchingFreshRegistry || offline == OnlineBypassCache || offline == OnlineRefreshRegistry) do
       -- clone the registry and index repo, or update them
       logInfo "Refreshing the Registry Index..."
       parallelise
@@ -214,9 +214,10 @@ getRegistryFns registryBox registryLock = do
         -- First insert the package set
         logDebug $ "Inserting package set in DB: " <> Version.print setVersion
         liftEffect $ Db.insertPackageSet db { compiler: set.compiler, date: set.published, version: set.version }
-        -- Then we insert every entry separately
-        for_ (Map.toUnfoldable set.packages :: Array _) \(Tuple name version) -> do
-          liftEffect $ Db.insertPackageSetEntry db { packageName: name, packageVersion: version, packageSetVersion: set.version }
+        -- Then we insert every entry in a transaction (avoids "database is locked" on Windows)
+        liftEffect $ Db.withTransaction db do
+          for_ (Map.toUnfoldable set.packages :: Array _) \(Tuple name version) -> do
+            Db.insertPackageSetEntry db { packageName: name, packageVersion: version, packageSetVersion: set.version }
 
   -- | List all the package sets versions available in the Registry repo
   getAvailablePackageSets :: ∀ a. Spago (LogEnv a) (Array Version)
@@ -263,7 +264,7 @@ getMetadataImpl db onlineStatus name =
 -- Parallelised version of `getMetadataImpl`
 getMetadataForPackagesImpl :: Db -> OnlineStatus -> Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
 getMetadataForPackagesImpl db onlineStatus names = do
-  (map Map.fromFoldable <<< sequence) <$> case onlineStatus == OnlineBypassCache of
+  (map Map.fromFoldable <<< sequence) <$> case onlineStatus == OnlineBypassCache || onlineStatus == OnlineRefreshRegistry of
     true -> do
       logDebug "Bypassing cache, reading metadata from file"
       parTraverseSpago metadataFromFile names
@@ -366,31 +367,37 @@ isVersionCompatible installedVersion minVersion =
       [ a, b, _c ], [ x, y, _z ] | a /= 0 && a == x && b >= y -> true
       _, _ -> false
 
--- | Check if we have fetched the registry recently enough, so we don't hit the net all the time
-shouldFetchRegistryRepos :: ∀ a. Db -> Spago (LogEnv a) Boolean
-shouldFetchRegistryRepos db = do
+-- | Check if we have fetched the registry recently enough, so we don't hit the net all the time.
+-- | When `OnlineRefreshRegistry` is set, always fetch regardless of staleness.
+shouldFetchRegistryRepos :: ∀ a. OnlineStatus -> Db -> Spago (LogEnv a) Boolean
+shouldFetchRegistryRepos offline db = do
   now <- liftEffect $ Now.nowDateTime
   let registryKey = "registry"
-  maybeLastRegistryFetch <- liftEffect $ Db.getLastPull db registryKey
-  case maybeLastRegistryFetch of
-    -- No record, so we have to fetch
-    Nothing -> do
-      logDebug "No record of last registry pull, will fetch"
-      liftEffect $ Db.updateLastPull db registryKey now
-      pure true
-    -- We have a record, so we check if it's old enough
-    Just lastRegistryFetch -> do
-      let staleAfter = Minutes 15.0
-      let (timeDiff :: Minutes) = DateTime.diff now lastRegistryFetch
-      let isOldEnough = timeDiff > staleAfter
-      -- We check if it's old, but also if we have it at all
-      registryExists <- FS.exists Paths.registryPath
-      if isOldEnough || not registryExists then do
-        logDebug "Registry is old, refreshing"
+  if offline == OnlineRefreshRegistry then do
+    logDebug "Refresh flag set, will fetch registry"
+    liftEffect $ Db.updateLastPull db registryKey now
+    pure true
+  else do
+    maybeLastRegistryFetch <- liftEffect $ Db.getLastPull db registryKey
+    case maybeLastRegistryFetch of
+      -- No record, so we have to fetch
+      Nothing -> do
+        logDebug "No record of last registry pull, will fetch"
         liftEffect $ Db.updateLastPull db registryKey now
         pure true
-      else do
-        pure false
+      -- We have a record, so we check if it's old enough
+      Just lastRegistryFetch -> do
+        let staleAfter = Minutes 15.0
+        let (timeDiff :: Minutes) = DateTime.diff now lastRegistryFetch
+        let isOldEnough = timeDiff > staleAfter
+        -- We check if it's old, but also if we have it at all
+        registryExists <- FS.exists Paths.registryPath
+        if isOldEnough || not registryExists then do
+          logDebug "Registry is old, refreshing"
+          liftEffect $ Db.updateLastPull db registryKey now
+          pure true
+        else do
+          pure false
 
 --------------------------------------------------------------------------------
 -- | Registry operations
@@ -461,34 +468,36 @@ waitForJobFinish { jobId, jobType } = go Nothing
     let
       url = baseApi <> Duplex.print V1.routes
         ( V1.Job jobId
-            { since: lastTimestamp
+            { since: lastTimestamp >>= DateTime.adjust (Milliseconds 1.0)
             , level: case logOptions.verbosity of
                 LogVerbose -> Just V1.Debug
                 _ -> Just V1.Info
             }
         )
-    jobInfo :: V1.Job <- callRegistry url V1.jobCodec Nothing
+    job :: V1.Job <- callRegistry url V1.jobCodec Nothing
+    let jobData = V1.jobInfo job
     -- first of all, print all the logs we get
-    for_ jobInfo.logs \log -> do
+    for_ jobData.logs \log -> do
       let line = indent $ toDoc $ DateTime.format Internal.Format.iso8601DateTime log.timestamp <> " " <> log.message
       case log.level of
         V1.Debug -> logDebug line
         V1.Info -> logInfo line
+        V1.Notice -> logInfo line
         V1.Warn -> logWarn line
         V1.Error -> logError line
-    case jobInfo.finishedAt of
+    case jobData.finishedAt of
       Nothing -> do
         -- If the job is not finished, we grab the timestamp of the last log line, wait a bit and retry
         let
-          latestTimestamp = jobInfo.logs # Array.last # case _ of
+          latestTimestamp = jobData.logs # Array.last # case _ of
             Just log -> Just log.timestamp
             Nothing -> lastTimestamp
         liftAff $ Aff.delay $ Milliseconds 500.0
         go latestTimestamp
       Just _finishedAt -> do
         -- if it's done we report the failure.
-        logDebug $ "Job: " <> printJson V1.jobCodec jobInfo
-        case jobInfo.success of
+        logDebug $ "Job: " <> printJson V1.jobCodec job
+        case jobData.success of
           false -> die $ toDoc
             [ "Registry finished processing the package, but it failed."
             , "If this was due to the package not meeting the requirements, you can find more info in the logs above, and try again."

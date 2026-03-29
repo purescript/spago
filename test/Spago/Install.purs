@@ -6,13 +6,9 @@ module Test.Spago.Install
 import Test.Prelude
 
 import Data.Array as Array
-import Data.Map as Map
+import Data.String as String
 import Effect.Now as Now
 import Registry.Version as Version
-import Spago.Command.Init as Init
-import Spago.Cmd as Cmd
-import Spago.Core.Config (Dependencies(..), Config)
-import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Log (LogVerbosity(..))
@@ -23,10 +19,10 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 import Test.Spec.Assertions as Assertions
-import Test.Spec.Assertions.String (shouldContain)
+import Test.Spec.Assertions.String (shouldContain, shouldNotContain)
 
-spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec :: CommandLocks -> Spec Unit
+spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "install" do
 
     Spec.it "warns that the config was not changed when trying to install a package already present in project dependencies" \{ spago, fixture } -> do
@@ -71,177 +67,176 @@ spec = Spec.around withTempDir do
     Spec.it "warns when specified dependency versions do not exist" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--package-set", "29.3.0" ] >>= shouldBeSuccess
 
-      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
-        $ insertConfigDependencies
-            ( Init.defaultConfig
-                { name: mkPackageName "aaa"
-                , withWorkspace: Just { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
-                , testModuleName: "Test.Main"
-                }
-            )
-            ( Dependencies $ Map.fromFoldable
-                [ Tuple (mkPackageName "prelude") (Just $ mkRange ">=6.0.0 <7.0.0")
-                , Tuple (mkPackageName "lists") (Just $ mkRange ">=1000.0.0 <1000.0.1")
-                ]
-            )
-            ( Dependencies $ Map.fromFoldable
-                [ Tuple (mkPackageName "spec") (Just $ mkRange ">=7.0.0 <8.0.0")
-                , Tuple (mkPackageName "maybe") (Just $ mkRange ">=1000.0.0 <1000.0.1")
-                ]
-            )
+      FS.writeTextFile (testCwd </> "spago.yaml") $ String.joinWith "\n"
+        [ "package:"
+        , "  name: aaa"
+        , "  dependencies:"
+        , "    - prelude: \">=6.0.0 <7.0.0\""
+        , "    - lists: \">=1000.0.0 <1000.0.1\""
+        , "  test:"
+        , "    main: Test.Main"
+        , "    dependencies:"
+        , "      - spec: \">=7.0.0 <8.0.0\""
+        , "      - maybe: \">=1000.0.0 <1000.0.1\""
+        , "workspace:"
+        , "  packageSet:"
+        , "    registry: 0.0.1"
+        ]
 
       warning <- FS.readTextFileSync $ fixture "missing-versions.txt"
       outputs <- spago [ "install" ]
       either _.stderr _.stderr outputs `shouldContain` warning
 
-    Spec.it "does not allow circular dependencies" \{ spago, fixture, testCwd } -> do
+    Spec.it "handles git extra-package scenarios: install, offline, circular, branch with slash, not-in-set, bad commit" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      let
-        conf = Init.defaultConfig
-          { name: mkPackageName "bbb"
-          , withWorkspace: Just
-              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
-              }
-          , testModuleName: "Test.Main"
-          }
-      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
-        ( conf
-            { workspace = conf.workspace # map
-                ( _
-                    { extraPackages = Just $ Map.fromFoldable
-                        [ Tuple (mkPackageName "a") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-                            { git: "https://github.com/purescript/spago.git"
-                            , ref: "master"
-                            , subdir: Nothing
-                            , dependencies: Just $ mkDependencies [ "b" ]
-                            }
-                        , Tuple (mkPackageName "b") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-                            { git: "https://github.com/purescript/spago.git"
-                            , ref: "master"
-                            , subdir: Nothing
-                            , dependencies: Just $ mkDependencies [ "a" ]
-                            }
-                        ]
-                    }
-                )
-            }
-        )
-      spago [ "install", "a", "b" ] >>= shouldBeFailureErr (fixture "circular-dependencies.txt")
 
-    Spec.it "installs a package in the set from a commit hash" \{ spago, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      writeConfigWithEither testCwd
+      -- Installs a package in the set from a commit hash
+      let
+        eitherConfig = gitExtraConfig
+          { name: "eee"
+          , extra: "either"
+          , git: "https://github.com/purescript/purescript-either.git"
+          , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
+          , deps: [ "control", "invariant", "maybe", "prelude" ]
+          }
+      FS.writeTextFile (testCwd </> "spago.yaml") eitherConfig
       spago [ "install", "either" ] >>= shouldBeSuccess
 
-    Spec.it "can't install (uncached) dependencies if offline" \{ spago, fixture, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      writeConfigWithEither testCwd
+      -- Can't install (uncached) dependencies if offline
+      FS.unlink (testCwd </> "spago.lock")
+      rmRf (testCwd </> ".spago")
+      FS.writeTextFile (testCwd </> "spago.yaml") eitherConfig
       spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
 
-    Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      let
-        conf = Init.defaultConfig
-          { name: mkPackageName "ddd"
-          , withWorkspace: Just
-              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
-              }
-          , testModuleName: "Test.Main"
-          }
-      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
-        ( conf
-            { workspace = conf.workspace # map
-                ( _
-                    { extraPackages = Just $ Map.fromFoldable
-                        [ Tuple (mkPackageName "nonexistent-package") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-                            { git: "https://github.com/spacchetti/purescript-metadata.git"
-                            , ref: "spago-test/branch-with-slash"
-                            , subdir: Nothing
-                            , dependencies: Just $ mkDependencies [ "prelude" ]
-                            }
-                        ]
-                    }
-                )
-            }
-        )
+      -- Does not allow circular dependencies
+      FS.writeTextFile (testCwd </> "spago.yaml") $ String.joinWith "\n"
+        [ "package:"
+        , "  name: bbb"
+        , "  dependencies: []"
+        , "workspace:"
+        , "  packageSet:"
+        , "    registry: 0.0.1"
+        , "  extraPackages:"
+        , "    a:"
+        , "      git: https://github.com/purescript/spago.git"
+        , "      ref: master"
+        , "      dependencies:"
+        , "        - b"
+        , "    b:"
+        , "      git: https://github.com/purescript/spago.git"
+        , "      ref: master"
+        , "      dependencies:"
+        , "        - a"
+        ]
+      spago [ "install", "a", "b" ] >>= shouldBeFailureErr (fixture "circular-dependencies.txt")
+
+      -- Installs a package version by branch name with / in it
+      FS.writeTextFile (testCwd </> "spago.yaml") $ gitExtraConfig
+        { name: "ddd"
+        , extra: "nonexistent-package"
+        , git: "https://github.com/spacchetti/purescript-metadata.git"
+        , ref: "spago-test/branch-with-slash"
+        , deps: [ "prelude" ]
+        }
       spago [ "install", "nonexistent-package" ] >>= shouldBeSuccess
-      let slashyPath = testCwd </> Paths.localCachePackagesPath </> "nonexistent-package" </> "spago-test%2fbranch-with-slash"
+      let slashyPath = testCwd </> Paths.localCachePackagesPath </> "nonexistent-package" </> "spago-test%sbranch-with-slash"
       unlessM (FS.exists slashyPath) do
         Assertions.fail $ "Expected path to exist: " <> Path.quote slashyPath
       kids <- FS.ls slashyPath
       when (Array.length kids == 0) do
         Assertions.fail $ "Expected path exists but contains nothing: " <> Path.quote slashyPath
 
-    Spec.it "installs a package not in the set from a commit hash" \{ spago, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      let
-        conf = Init.defaultConfig
-          { name: mkPackageName "eee"
-          , withWorkspace: Just
-              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
-              }
-          , testModuleName: "Test.Main"
-          }
-      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
-        ( conf
-            { workspace = conf.workspace # map
-                ( _
-                    { extraPackages = Just $ Map.fromFoldable
-                        [ Tuple (mkPackageName "spago") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-                            { git: "https://github.com/purescript/spago.git"
-                            , ref: "cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990"
-                            , subdir: Nothing
-                            , dependencies: Just $ mkDependencies [ "prelude" ]
-                            }
-                        ]
-                    }
-                )
-            }
-        )
+      -- Installs a package not in the set from a commit hash
+      FS.writeTextFile (testCwd </> "spago.yaml") $ gitExtraConfig
+        { name: "eee"
+        , extra: "spago"
+        , git: "https://github.com/purescript/spago.git"
+        , ref: "cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990"
+        , deps: [ "prelude" ]
+        }
       spago [ "install", "spago" ] >>= shouldBeSuccess
 
-    Spec.it "can't install a package from a not-existing commit hash" \{ spago, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      let
-        conf = Init.defaultConfig
-          { name: mkPackageName "eee"
-          , withWorkspace: Just
-              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
-              }
-          , testModuleName: "Test.Main"
-          }
-      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
-        ( conf
-            { workspace = conf.workspace # map
-                ( _
-                    { extraPackages = Just $ Map.fromFoldable
-                        [ Tuple (mkPackageName "either") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-                            { git: "https://github.com/purescript/spago.git"
-                            , ref: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            , subdir: Nothing
-                            , dependencies: Just $ mkDependencies [ "prelude" ]
-                            }
-                        ]
-                    }
-                )
-            }
-        )
+      -- Can't install a package from a not-existing commit hash
+      FS.writeTextFile (testCwd </> "spago.yaml") $ gitExtraConfig
+        { name: "eee"
+        , extra: "either"
+        , git: "https://github.com/purescript/spago.git"
+        , ref: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        , deps: [ "prelude" ]
+        }
       spago [ "install", "spago" ] >>= shouldBeFailure
 
-    Spec.it "can update dependencies in a sub-package" \{ spago, fixture, testCwd } -> do
-      let subpackage = testCwd </> "subpackage"
+    Spec.it "refresh flag forces registry refresh and bypasses DB metadata cache" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      FS.mkdirp (subpackage </> "src")
-      FS.mkdirp (subpackage </> "test")
-      FS.writeTextFile (subpackage </> "src" </> "Main.purs") (Init.srcMainTemplate "Subpackage.Main")
-      FS.writeTextFile (subpackage </> "test" </> "Main.purs") (Init.testMainTemplate "Subpackage.Test.Main")
-      FS.writeYamlFile Config.configCodec (subpackage </> "spago.yaml")
-        ( Init.defaultConfig
-            { name: mkPackageName "subpackage"
-            , withWorkspace: Nothing
-            , testModuleName: "Subpackage.Test.Main"
-            }
-        )
+      -- The --refresh flag should force a registry refresh regardless of cache age
+      result1 <- spago [ "install", "--refresh" ]
+      shouldBeSuccess result1
+      either _.stderr _.stderr result1 `shouldContain` "Refreshing the Registry Index..."
+      -- Remove lockfile to force dependency resolution on next install
+      FS.unlink (testCwd </> "spago.lock")
+      -- With --refresh, should also bypass DB metadata cache and read from files
+      result2 <- spago [ "install", "-v", "--refresh", "effect" ]
+      shouldBeSuccess result2
+      either _.stderr _.stderr result2 `shouldContain` "Bypassing cache, reading metadata from file"
+
+    Spec.it "skips cloning during resolution when git package has declared deps" \{ spago, testCwd, fixture } -> do
+      FS.copyFile { src: fixture "git-declared-deps/with-declared-deps.yaml", dst: testCwd </> "spago.yaml" }
+      FS.mkdirp (testCwd </> "src")
+      FS.writeTextFile (testCwd </> "src/Main.purs") "module Main where"
+
+      -- first build: cloning should happen AFTER "Downloading dependencies..." (during fetch phase)
+      result1 <- spago [ "build" ]
+      result1 # shouldBeSuccess
+      let stderr1 = either _.stderr _.stderr result1
+      let downloadingIdx = String.indexOf (String.Pattern "Downloading dependencies...") stderr1
+      let cloningIdx = String.indexOf (String.Pattern "Cloning") stderr1
+      case downloadingIdx, cloningIdx of
+        Just d, Just c -> d `Assert.shouldSatisfy` \_ -> d < c
+        _, _ -> Assertions.fail $ "Expected 'Downloading dependencies...' before 'Cloning' but got:\n" <> stderr1
+
+      -- Verify lockfile was created with correct content
+      checkFixture (testCwd </> "spago.lock") (fixture "git-declared-deps/spago.lock")
+
+      -- Second build: remove .spago cache, lockfile should still defer cloning to fetch phase
+      rmRf (testCwd </> ".spago")
+      result2 <- spago [ "build" ]
+      result2 # shouldBeSuccess
+      let stderr2 = either _.stderr _.stderr result2
+      let downloadingIdx2 = String.indexOf (String.Pattern "Downloading dependencies...") stderr2
+      let cloningIdx2 = String.indexOf (String.Pattern "Cloning") stderr2
+      case downloadingIdx2, cloningIdx2 of
+        Just d, Just c -> d `Assert.shouldSatisfy` \_ -> d < c
+        _, _ -> Assertions.fail $ "Expected 'Downloading dependencies...' before 'Cloning' but got:\n" <> stderr2
+      -- Lockfile should not be regenerated
+      when (isJust $ String.indexOf (String.Pattern "generating it") stderr2) do
+        Assertions.fail $ "Lockfile was regenerated unexpectedly:\n" <> stderr2
+
+      -- Third build (offline): should work because package is cached
+      spago [ "build", "--offline" ] >>= shouldBeSuccess
+
+    Spec.it "must clone during resolution when git package has no declared deps" \{ spago, testCwd, fixture } -> do
+      libRepo <- mkGitRepo testCwd { name: "mylib", deps: [ "prelude" ] }
+      -- Set up consumer project with git dep (no declared deps)
+      FS.mkdirp (testCwd </> "src")
+      FS.writeTextFile (testCwd </> "src/Main.purs") "module Main where\nimport MYLIB.Main\n"
+      -- Use fixture with placeholder replacement (like 1208 test)
+      content <- FS.readTextFile $ fixture "git-declared-deps/without-declared-deps.yaml"
+      FS.writeTextFile (testCwd </> "spago.yaml") $
+        String.replaceAll (String.Pattern "<library-repo-path>") (String.Replacement $ Path.toRaw libRepo) content
+      -- Without declared deps, spago must clone to read spago.yaml from the repo.
+      -- "Cloning" should appear BEFORE "Downloading dependencies..."
+      result <- spago [ "build" ]
+      result # shouldBeSuccess
+      let stderr = either _.stderr _.stderr result
+      let downloadingIdx = String.indexOf (String.Pattern "Downloading dependencies...") stderr
+      let cloningIdx = String.indexOf (String.Pattern "Cloning") stderr
+      case downloadingIdx, cloningIdx of
+        Just d, Just c -> c `Assert.shouldSatisfy` \_ -> c < d
+        _, _ -> Assertions.fail $ "Expected 'Cloning' before 'Downloading dependencies...' but got:\n" <> stderr
+
+    Spec.it "can update dependencies in a sub-package" \{ spago, fixture, testCwd } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      subpackage <- makeSubpackage testCwd { name: "subpackage", moduleName: "Subpackage" }
       spago [ "install", "-p", "subpackage", "either" ] >>= shouldBeSuccess
       checkFixture (subpackage </> "spago.yaml") (fixture "spago-subpackage-install-success.yaml")
 
@@ -272,52 +267,42 @@ spec = Spec.around withTempDir do
       spago [ "install", "either" ] >>= shouldBeSuccess
       checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-solver-ranges.yaml")
 
+    Spec.it "widens solver ranges for non-registry extra packages (#1338)" \{ spagoIn, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "1338-extra-packages-version", dst: testCwd }
+      -- Three local extra packages in one workspace:
+      --   local-lib-match: version 1.0.0, constraint >=1.0.0 <2.0.0 (satisfies, no warning)
+      --   local-lib-mismatch: version 1.0.0, constraint >=2.0.0 <3.0.0 (warns, still builds)
+      --   local-lib-no-version: no publish.version, constraint >=5.0.0 <6.0.0 (widened, no warning)
+      result <- spagoIn (testCwd </> "consumer") [ "build" ]
+      result # shouldBeSuccess
+      let stderr = either _.stderr _.stderr result
+      stderr `shouldContain` "Extra package local-lib-mismatch has version 1.0.0, which doesn't satisfy constraint >=2.0.0 <3.0.0"
+      stderr `shouldNotContain` "local-lib-match"
+      stderr `shouldNotContain` "local-lib-no-version"
 
-insertConfigDependencies :: Config -> Dependencies -> Dependencies -> Config
-insertConfigDependencies config core test =
-  ( config
-      { package = config.package # map
-          ( \package' -> package'
-              { dependencies = core
-              , test = package'.test # map ((_ { dependencies = test }))
-              }
-          )
-      }
-  )
-
-writeConfigWithEither :: RootPath -> Aff Unit
-writeConfigWithEither root = do
-  -- The commit for `either` is for the `v6.1.0` release
-  let
-    conf = Init.defaultConfig
-      { name: mkPackageName "eee"
-      , withWorkspace: Just
-          { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
-          }
-      , testModuleName: "Test.Main"
-      }
-  FS.writeYamlFile Config.configCodec (root </> "spago.yaml")
-    ( conf
-        { workspace = conf.workspace # map
-            ( _
-                { extraPackages = Just $ Map.fromFoldable
-                    [ Tuple (mkPackageName "either") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-                        { git: "https://github.com/purescript/purescript-either.git"
-                        , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
-                        , subdir: Nothing
-                        , dependencies: Just $ mkDependencies [ "control", "invariant", "maybe", "prelude" ]
-                        }
-                    ]
-                }
-            )
-        }
-    )
+gitExtraConfig :: { name :: String, extra :: String, git :: String, ref :: String, deps :: Array String } -> String
+gitExtraConfig { name, extra, git, ref, deps } =
+  String.joinWith "\n"
+    $
+      [ "package:"
+      , "  name: " <> name
+      , "  dependencies: []"
+      , "workspace:"
+      , "  packageSet:"
+      , "    registry: 0.0.1"
+      , "  extraPackages:"
+      , "    " <> extra <> ":"
+      , "      git: " <> git
+      , "      ref: " <> ref
+      , "      dependencies:"
+      ]
+    <> map ("        - " <> _) deps
 
 -- | Test that fetchRepo handles git history rewrites (squash) gracefully
 -- This verifies that git pull --rebase works even when the remote history is squashed,
 -- as long as the content is the same. This is important for the registry repo.
 forceResetSpec :: Spec Unit
-forceResetSpec = Spec.around withTempDir do
+forceResetSpec = Spec.parallel $ Spec.around withTempDir do
   Spec.describe "git fetchRepo" do
     Spec.it "handles history rewrite (squash) gracefully" \{ testCwd } -> do
       -- Setup logging
@@ -333,12 +318,12 @@ forceResetSpec = Spec.around withTempDir do
       -- 1. Create a bare "origin" repo
       let originRepo = testCwd </> "origin"
       FS.mkdirp originRepo
-      git' (Just $ Path.toGlobal originRepo) [ "init", "--bare" ]
+      git originRepo [ "init", "--bare" ]
 
       -- 2. Clone, make commits, push
       let workRepo = testCwd </> "work"
-      let gitInWorkRepo = git' (Just $ Path.toGlobal workRepo)
-      git [ "clone", Path.toRaw originRepo, Path.toRaw workRepo ]
+      let gitInWorkRepo = git workRepo
+      git testCwd [ "clone", Path.toRaw originRepo, Path.toRaw workRepo ]
       gitInWorkRepo [ "config", "user.name", "test" ]
       gitInWorkRepo [ "config", "user.email", "test@test.com" ]
       gitInWorkRepo [ "checkout", "-b", "main" ]
@@ -352,7 +337,7 @@ forceResetSpec = Spec.around withTempDir do
 
       -- 3. Clone again (simulating spago's cached registry)
       let cachedRepo = testCwd </> "cached"
-      git [ "clone", Path.toRaw originRepo, Path.toRaw cachedRepo ]
+      git testCwd [ "clone", Path.toRaw originRepo, Path.toRaw cachedRepo ]
 
       -- 4. Add another commit to origin that modifies an existing file
       -- Now cached is behind and has different content
@@ -382,12 +367,3 @@ forceResetSpec = Spec.around withTempDir do
       content1 `shouldEqualStr` "content1"
       content2 <- FS.readTextFile (cachedRepo </> "file2.txt")
       content2 `shouldEqualStr` "content2-updated"
-
-git :: Array String -> Aff Unit
-git = git' Nothing
-
-git' :: Maybe GlobalPath -> Array String -> Aff Unit
-git' cwd args =
-  Cmd.exec (Path.global "git") args
-    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
-    >>= shouldBeSuccess
