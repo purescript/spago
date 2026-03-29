@@ -169,8 +169,10 @@ validateMainExport moduleName = do
     globs = Build.getBuildGlobs
       { rootPath
       , dependencies:
-          let { core, test } = unsafeFromJust $ Map.lookup selected.package.name dependencies
-          in Map.union core test
+          let
+            { core, test } = unsafeFromJust $ Map.lookup selected.package.name dependencies
+          in
+            Map.union core test
       , depsOnly: false
       , withTests: false
       , selected: NEA.singleton selected
