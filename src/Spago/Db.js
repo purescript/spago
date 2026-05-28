@@ -9,12 +9,29 @@ export const connectImpl = (databasePath, logger) => {
   const dir = path.dirname(databasePath);
   fs.mkdirSync(dir, { recursive: true });
 
+  // WAL journal mode is persistent in the DB file header (bytes 18-19), so
+  // once set it sticks across connections and reopens. We only run the PRAGMA
+  // when creating a fresh DB; on subsequent connects the file header already
+  // says WAL and SQLite picks it up automatically.
+  //
+  // Why we go out of our way to skip it: we get SQLITE_IOERR_TRUNCATE (errcode 1546)
+  // on Windows when running multiple spago processes.
+  // I think this is because `PRAGMA journal_mode = WAL` inits the wal-index (.shm)
+  // init path, which calls winTruncate on Windows.
+  //
+  // See:
+  //   https://sqlite.org/pragma.html (journal_mode persistence)
+  //   https://sqlite.org/fileformat.html (header bytes 18-19 = WAL marker)
+  const isNewDatabase = !fs.existsSync(databasePath);
+
   const db = new DatabaseSync(databasePath, {
     enableForeignKeyConstraints: true,
     timeout: 5000, // Wait up to 5s if database is locked (matches better-sqlite3 default)
   });
 
-  db.exec("PRAGMA journal_mode = WAL");
+  if (isNewDatabase) {
+    db.exec("PRAGMA journal_mode = WAL");
+  }
 
   db.prepare(`CREATE TABLE IF NOT EXISTS package_sets
     ( version TEXT PRIMARY KEY NOT NULL
