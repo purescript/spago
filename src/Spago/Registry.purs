@@ -431,13 +431,20 @@ submitRegistryOperation payload = do
 callRegistry :: forall env a b. String -> CJ.Codec b -> Maybe { codec :: CJ.Codec a, data :: a } -> Spago (GitEnv env) b
 callRegistry url outputCodec maybeInput = handleError do
   logDebug $ "Calling registry at " <> url
-  response <- liftAff $ withBackoff' $ try case maybeInput of
-    Just { codec: inputCodec, data: input } -> Http.fetch url
-      { method: Http.POST
-      , headers: { "Content-Type": "application/json" }
-      , body: Json.stringifyJson inputCodec input
-      }
-    Nothing -> Http.fetch url { method: Http.GET }
+  response <- liftAff $ withBackoff' do
+    res <- try case maybeInput of
+      Just { codec: inputCodec, data: input } -> Http.fetch url
+        { method: Http.POST
+        , headers: { "Content-Type": "application/json" }
+        , body: Json.stringifyJson inputCodec input
+        }
+      Nothing -> Http.fetch url { method: Http.GET }
+    case res of
+      Left _ -> Aff.delay (Aff.Milliseconds 30_000.0)
+      Right { status } | status >= 500 && status < 600 ->
+        Aff.delay (Aff.Milliseconds 30_000.0)
+      _ -> pure unit
+    pure res
   case response of
     Nothing -> pure $ Left $ "Could not reach the registry at " <> url
     Just (Left err) -> pure $ Left $ "Error while calling the registry:\n  " <> Exception.message err

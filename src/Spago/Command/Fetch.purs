@@ -319,9 +319,13 @@ fetchPackagesToLocalCache packages = do
                         , url = packageUrl
                         }
                     )
-                  -- If we get a 503, we want the backoff to kick in, so we wait here and we'll eventually be retried
+                  -- If the request failed (connection error) or got a 5xx, we want the backoff
+                  -- to kick in. withBackoff' only retries on its own timeout, so we delay here
+                  -- to lose the race against runTimeout and trigger a retry.
                   case res of
-                    Right { status } | status == StatusCode 503 -> Aff.delay (Aff.Milliseconds 30_000.0)
+                    Left _ -> Aff.delay (Aff.Milliseconds 30_000.0)
+                    Right { status } | status >= StatusCode 500 && status < StatusCode 600 ->
+                      Aff.delay (Aff.Milliseconds 30_000.0)
                     _ -> pure unit
                   pure res
                 case response of
