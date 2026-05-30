@@ -162,7 +162,7 @@ withBackoff { delay: Aff.Milliseconds timeout, action, shouldCancel, shouldRetry
         case maybeRetry of
           Maybe.Nothing -> pure Maybe.Nothing
           Maybe.Just newAction -> do
-            let newTimeout = Int.floor timeout `Int.pow` (attempt + 1)
+            let newTimeout = Int.floor timeout * (2 `Int.pow` attempt)
             maybeResult <- runAction attempt newAction newTimeout
             loop (attempt + 1) maybeResult
       Maybe.Just result ->
