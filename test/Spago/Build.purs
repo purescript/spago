@@ -212,7 +212,7 @@ spec sem = Spec.parallel $ Spec.around (withBuildLock sem) do
             { stdoutFile: Nothing
             , stderrFile: Just $ fixture expectedFixture
             , result
-            , sanitize: sanitizePlatformOutput
+            , sanitize: sanitizePlatformOutput >>> normalizeCompileOrder 2
             }
 
       FS.copyTree { src: fixture "build/1148-warnings-diff-errors", dst: testCwd </> "." }

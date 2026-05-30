@@ -4,8 +4,8 @@ Reading Spago workspace configuration...
 
 Downloading dependencies...
 Building...
-[1 of 2] Compiling Foo
-[2 of 2] Compiling Main
+[x of 2] Compiling module-name
+[x of 2] Compiling module-name
 [ERROR 1/2 TypesDoNotUnify] src/Foo.purs:4:5
 
   4  x = "nope"

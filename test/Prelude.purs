@@ -9,6 +9,8 @@ import Data.Array as Array
 import Data.Map as Map
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags as RF
 import Effect.Aff as Aff
 import Effect.Aff.AVar (AVar)
 import Effect.Aff.AVar as AVar
@@ -175,6 +177,17 @@ sanitizePlatformOutput =
   String.trim
     >>> String.replaceAll (Pattern "\\") (Replacement "/")
     >>> String.replaceAll (Pattern "\r\n") (Replacement "\n")
+
+-- | Normalize `[N of <total>] Compiling <module>` lines. purs schedules
+-- | independent modules in whatever order system resources allow, so fixture
+-- | comparison has to ignore the order. Pass the total module count expected.
+normalizeCompileOrder :: Int -> String -> String
+normalizeCompileOrder total =
+  Regex.replace regex ("[x of " <> show total <> "] Compiling module-name")
+  where
+  regex = unsafeFromRight $ Regex.regex
+    ("\\[\\d+ of " <> show total <> "\\] Compiling [^\n]+")
+    RF.global
 
 checkFixture :: ∀ path. IsPath path => path -> FixturePath -> Aff Unit
 checkFixture filepath fixturePath = checkFixture' filepath fixturePath identity (shouldEqualStr `on` String.trim)

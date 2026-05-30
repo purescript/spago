@@ -5,8 +5,6 @@ module Test.Spago.Publish
 
 import Test.Prelude
 
-import Data.String.Regex as Regex
-import Data.String.Regex.Flags as RF
 import Node.Platform as Platform
 import Node.Process as Process
 import Spago.FS as FS
@@ -94,16 +92,8 @@ spec = Spec.around withTempDir do
           { stdoutFile: Nothing
           , stderrFile: Just file
           , result: isLeft
-          , sanitize: sanitizePlatformOutput >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
+          , sanitize: sanitizePlatformOutput >>> normalizeCompileOrder 3
           }
-
-        -- We have to ignore lines like "[1 of 3] Compiling Effect.Console" when
-        -- comparing output, because the compiler will always compile in
-        -- different order, depending on how the system resources happened to
-        -- align at the moment of the test run.
-        buildOrderRegex = unsafeFromRight $ Regex.regex
-          "\\[\\d of 3\\] Compiling (Effect\\.Console|Effect\\.Class\\.Console|Lib)"
-          RF.global
 
       FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
