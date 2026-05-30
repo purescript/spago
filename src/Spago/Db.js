@@ -9,28 +9,29 @@ export const connectImpl = (databasePath, logger) => {
   const dir = path.dirname(databasePath);
   fs.mkdirSync(dir, { recursive: true });
 
+  const db = new DatabaseSync(databasePath, {
+    enableForeignKeyConstraints: true,
+    timeout: 5000, // Wait up to 5s if database is locked
+  });
+
   // WAL journal mode is persistent in the DB file header (bytes 18-19), so
-  // once set it sticks across connections and reopens. We only run the PRAGMA
-  // when creating a fresh DB; on subsequent connects the file header already
-  // says WAL and SQLite picks it up automatically.
+  // once set it sticks across connections and reopens. We skip the PRAGMA when
+  // it's already set to avoid hitting winTruncate on the wal-index (.shm),
+  // which races between concurrent spago processes on Windows and surfaces as
+  // SQLITE_IOERR_TRUNCATE (errcode 1546).
   //
-  // Why we go out of our way to skip it: we get SQLITE_IOERR_TRUNCATE (errcode 1546)
-  // on Windows when running multiple spago processes.
-  // I think this is because `PRAGMA journal_mode = WAL` inits the wal-index (.shm)
-  // init path, which calls winTruncate on Windows.
+  // When two fresh processes race the initial set, the loser's exec throws,
+  // but the winner has already written WAL to the header — so we only re-throw
+  // if WAL didn't actually end up enabled (i.e. the error wasn't the benign
+  // race we expect).
   //
   // See:
   //   https://sqlite.org/pragma.html (journal_mode persistence)
   //   https://sqlite.org/fileformat.html (header bytes 18-19 = WAL marker)
-  const isNewDatabase = !fs.existsSync(databasePath);
-
-  const db = new DatabaseSync(databasePath, {
-    enableForeignKeyConstraints: true,
-    timeout: 5000, // Wait up to 5s if database is locked (matches better-sqlite3 default)
-  });
-
-  if (isNewDatabase) {
-    db.exec("PRAGMA journal_mode = WAL");
+  const inWal = () => db.prepare("PRAGMA journal_mode").get()?.journal_mode === "wal";
+  if (!inWal()) {
+    try { db.exec("PRAGMA journal_mode = WAL"); }
+    catch (e) { if (!inWal()) throw e; }
   }
 
   db.prepare(`CREATE TABLE IF NOT EXISTS package_sets

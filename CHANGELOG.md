@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Bugfixes:
-* Fix flaky `SQLITE_IOERR_TRUNCATE` on Windows when multiple spago processes connect concurrently to the cache DB, by only setting `PRAGMA journal_mode = WAL` on first creation (WAL mode is persistent in the DB file header)
+* Fix flaky `SQLITE_IOERR_TRUNCATE` on Windows when multiple spago processes connect concurrently to the cache DB, by skipping `PRAGMA journal_mode = WAL` when it's already enabled (WAL mode is persistent in the DB file header) and tolerating the race on the initial set
 
 ## [1.0.4] - 2026-03-30
 
