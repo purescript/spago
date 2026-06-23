@@ -95,49 +95,118 @@ info { package, json } = do
     Left err -> do
       logDebug err
       die $ "Could not find package " <> PackageName.print packageName
-    Right meta -> do
-      -- We just print out the metadata file
-      output case json of
-        true -> OutputJson Metadata.codec meta
-        false -> OutputYaml Metadata.codec meta
+    Right meta@(Metadata.Metadata { published }) -> do
+      -- Get package sets for each published version
+      { db } <- ask
+      let versions = Array.fromFoldable $ Map.keys published
+      packageSetsByVersion <- for versions \version -> do
+        entries <- liftEffect $ Db.selectPackageSetEntriesByPackage db packageName version
+        let setVersions = map _.packageSetVersion entries
+        pure { version, packageSets: Array.sort setVersions }
+
+      case json of
+        true -> do
+          -- For JSON, we include package sets in a combined output
+          let
+            versionSetsCodec = CJ.named "VersionPackageSets" $ CJ.Record.object
+              { version: Version.codec
+              , packageSets: CJ.array Version.codec
+              }
+            combinedCodec = CJ.named "PackageInfoWithSets" $ CJ.Record.object
+              { metadata: Metadata.codec
+              , packageSets: CJ.array versionSetsCodec
+              }
+          output $ OutputJson combinedCodec { metadata: meta, packageSets: packageSetsByVersion }
+        false -> do
+          -- For YAML/text output, print metadata then add package sets table
+          output $ OutputYaml Metadata.codec meta
+          -- Only show the package sets table if there are any
+          let nonEmptySets = Array.filter (\r -> not (Array.null r.packageSets)) packageSetsByVersion
+          when (not (Array.null nonEmptySets)) do
+            logInfo ""
+            logInfo "Package Sets containing each version:"
+            output $ OutputTable
+              { titles: [ "VERSION", "PACKAGE SETS" ]
+              , rows: nonEmptySets # map \{ version, packageSets: sets } ->
+                  [ Version.print version
+                  , String.joinWith ", " (map Version.print sets)
+                  ]
+              }
 
 type RegistryPackageSetsArgs =
   { latest :: Boolean
   , json :: Boolean
+  , set :: Maybe String
   }
 
 packageSets :: ∀ r. RegistryPackageSetsArgs -> Spago (RegistryEnv r) Unit
-packageSets { latest, json } = do
-  availableSets <- Registry.listPackageSets
+packageSets { latest, json, set } = do
+  case set of
+    Just setVersionStr -> do
+      -- Query packages in a specific package set
+      setVersion <- case parseLenientVersion setVersionStr of
+        Left err -> die [ "Could not parse package set version. Error:", show err ]
+        Right v -> pure v
 
-  let
-    sets = case latest of
-      false -> availableSets
-      true ->
-        -- here we need to keep only the highest version of all the sets with the same compiler version
-        Array.fromFoldable
-          $ Map.values
-          $
-            foldl
-              ( \acc newSet -> case Map.lookup newSet.compiler acc of
-                  Nothing -> Map.insert newSet.compiler newSet acc
-                  Just { version } -> case newSet.version > version of
-                    true -> Map.insert newSet.compiler newSet acc
-                    false -> acc
-              )
-              Map.empty
-              availableSets
+      { db } <- ask
+      entries <- liftEffect $ Db.selectPackageSetEntriesBySet db setVersion
 
-  output case json of
-    true -> OutputJson (CJ.array Db.packageSetCodec) sets
-    false -> OutputTable
-      { titles: [ "VERSION", "DATE", "COMPILER" ]
-      , rows: sets # map \{ version, date, compiler } ->
-          [ Version.print version
-          , DateTime.format Internal.Format.iso8601Date $ DateTime date bottom
-          , Version.print compiler
-          ]
-      }
+      when (Array.null entries) do
+        die $ "No packages found in package set " <> Version.print setVersion
+
+      -- Sort entries by package name for consistent output
+      let sortedEntries = Array.sortWith _.packageName entries
+
+      output case json of
+        true ->
+          let
+            entryCodec = CJ.named "PackageSetEntryOutput" $ CJ.Record.object
+              { packageName: PackageName.codec
+              , packageVersion: Version.codec
+              }
+            toOutput e = { packageName: e.packageName, packageVersion: e.packageVersion }
+          in
+            OutputJson (CJ.array entryCodec) (map toOutput sortedEntries)
+        false -> OutputTable
+          { titles: [ "PACKAGE", "VERSION" ]
+          , rows: sortedEntries # map \{ packageName, packageVersion } ->
+              [ PackageName.print packageName
+              , Version.print packageVersion
+              ]
+          }
+
+    Nothing -> do
+      -- Original behavior: list all package sets
+      availableSets <- Registry.listPackageSets
+
+      let
+        sets = case latest of
+          false -> availableSets
+          true ->
+            -- here we need to keep only the highest version of all the sets with the same compiler version
+            Array.fromFoldable
+              $ Map.values
+              $
+                foldl
+                  ( \acc newSet -> case Map.lookup newSet.compiler acc of
+                      Nothing -> Map.insert newSet.compiler newSet acc
+                      Just { version } -> case newSet.version > version of
+                        true -> Map.insert newSet.compiler newSet acc
+                        false -> acc
+                  )
+                  Map.empty
+                  availableSets
+
+      output case json of
+        true -> OutputJson (CJ.array Db.packageSetCodec) sets
+        false -> OutputTable
+          { titles: [ "VERSION", "DATE", "COMPILER" ]
+          , rows: sets # map \{ version, date, compiler } ->
+              [ Version.print version
+              , DateTime.format Internal.Format.iso8601Date $ DateTime date bottom
+              , Version.print compiler
+              ]
+          }
 
 type RegistryTransferArgs = { privateKeyPath :: RawFilePath }
 
