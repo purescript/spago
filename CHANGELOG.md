@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Bugfixes:
 * Fix flaky `SQLITE_IOERR_TRUNCATE` on Windows when multiple spago processes connect concurrently to the cache DB, by skipping `PRAGMA journal_mode = WAL` when it's already enabled (WAL mode is persistent in the DB file header) and tolerating the race on the initial set
 * Retry transient network failures (connection errors and 5xx responses) when fetching package tarballs and calling the registry API, instead of failing immediately
+* Add `backgroundColor` to search input (in `docs-search` app) so text remains legible when system's color scheme is dark
 
 ## [1.0.4] - 2026-03-30
 
