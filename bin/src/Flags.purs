@@ -278,6 +278,23 @@ packages =
           <> O.help "Package name to add as dependency"
       )
 
+scriptSource :: Parser String
+scriptSource =
+  O.strArgument
+    ( O.metavar "SOURCE"
+        <> O.help "PureScript source file to run"
+    )
+
+scriptDependencies :: Parser (List String)
+scriptDependencies =
+  O.many $
+    O.strOption
+      ( O.long "dependency"
+          <> O.short 'd'
+          <> O.metavar "PACKAGE"
+          <> O.help "Package dependency to make available to the script"
+      )
+
 packagesToRemove :: Parser (List String)
 packagesToRemove =
   O.many $
