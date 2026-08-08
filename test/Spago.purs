@@ -25,6 +25,7 @@ import Test.Spago.Publish as Publish
 import Test.Spago.Registry as Registry
 import Test.Spago.Repl as Repl
 import Test.Spago.Run as Run
+import Test.Spago.Script as Script
 import Test.Spago.Sources as Sources
 import Test.Spago.Test as Test
 import Test.Spago.Transfer as Transfer
@@ -69,6 +70,7 @@ main = do
         Ls.spec cmdLocks
         Repl.spec
         Run.spec cmdLocks
+        Script.spec cmdLocks
         Test.spec cmdLocks
         Bundle.spec cmdLocks
         Registry.spec
