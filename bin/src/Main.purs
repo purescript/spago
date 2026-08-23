@@ -39,6 +39,7 @@ import Spago.Command.Registry (RegistryInfoArgs, RegistryPackageSetsArgs, Regist
 import Spago.Command.Registry as RegistryCmd
 import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
+import Spago.Command.Script as Script
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
 import Spago.Command.Uninstall as Uninstall
@@ -145,6 +146,12 @@ type RunArgs =
   , pure :: Boolean
   }
 
+type ScriptArgs =
+  { source :: String
+  , dependencies :: List String
+  , packageSet :: Maybe String
+  }
+
 type TestArgs =
   { selectedPackage :: Maybe String
   , output :: Maybe String
@@ -212,6 +219,7 @@ data Command a
   | RegistryTransfer RegistryTransferArgs
   | Repl ReplArgs
   | Run RunArgs
+  | Script ScriptArgs
   | Sources SourcesArgs
   | Test TestArgs
   | Upgrade UpgradeArgs
@@ -270,6 +278,7 @@ argParser =
         )
     , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
     , commandParser "run" (Run <$> runArgsParser) "Run the project"
+    , commandParser "script" (Script <$> scriptArgsParser) "Run a standalone PureScript source file"
     , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
     , commandParser "test" (Test <$> testArgsParser) "Test the project"
     , commandParser "uninstall" (Uninstall <$> uninstallArgsParser) "Remove dependencies from a package"
@@ -412,6 +421,14 @@ bundleArgsParser =
     , strict: Flags.strict
     , statVerbosity: Flags.statVerbosity
     , pure: Flags.pureLockfile
+    }
+
+scriptArgsParser :: Parser ScriptArgs
+scriptArgsParser =
+  Optparse.fromRecord
+    { source: Flags.scriptSource
+    , dependencies: Flags.scriptDependencies
+    , packageSet: Flags.maybeSetVersion
     }
 
 publishArgsParser :: Parser PublishArgs
@@ -657,8 +674,66 @@ main = do
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             built <- runSpago buildEnv (Build.run options)
             when built do
-              runEnv <- runSpago env (mkRunEnv args buildEnv)
+              runEnv <- runSpago env (mkRunEnv args buildEnv Nothing)
               runSpago runEnv Run.run
+          Script args -> do
+            originalCwd <- Paths.cwd
+            sourcePath <- Path.toAbsolute (Path.global args.source)
+            tmpDir <- mkTemp
+            FS.mkdirp tmpDir
+            Paths.chdir tmpDir
+            tmpRootPath <- Path.mkRoot tmpDir
+            registryEnv <- mkRegistryEnv offline <#> Record.union { rootPath: tmpRootPath }
+            setVersion <- parseSetVersion args.packageSet
+            void $ runSpago registryEnv $ Init.run
+              { setVersion
+              , mode: Init.InitWorkspace { packageName: Just "script" }
+              , useSolver: false
+              }
+            FS.copyTree
+              { src: sourcePath
+              , dst: tmpRootPath </> "src" </> (Script.moduleName <> ".purs")
+              }
+            { env, fetchOpts } <- mkFetchEnv
+              { packages: args.dependencies
+              , selectedPackage: Nothing
+              , ensureRanges: false
+              , testDeps: false
+              , isRepl: false
+              , pure: false
+              , migrateConfig: false
+              , offline
+              }
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            buildEnv <- runSpago env
+              ( mkBuildEnv
+                  { backendArgs: mempty
+                  , output: Nothing
+                  , pedanticPackages: false
+                  , statVerbosity: Nothing
+                  , strict: Nothing
+                  }
+                  dependencies
+              )
+            built <- runSpago buildEnv (Build.run { depsOnly: false, pursArgs: mempty, jsonErrors: false })
+            when built do
+              let
+                runArgs =
+                  { selectedPackage: Nothing
+                  , output: Nothing
+                  , pedanticPackages: false
+                  , pursArgs: mempty
+                  , backendArgs: mempty
+                  , execArgs: Nothing
+                  , main: Just Script.moduleName
+                  , ensureRanges: false
+                  , strict: Nothing
+                  , statVerbosity: Nothing
+                  , pure: false
+                  }
+              runEnv <- runSpago env (mkRunEnv runArgs buildEnv (Just $ Path.toGlobal originalCwd))
+              runSpago runEnv Run.run
+            Paths.chdir originalCwd
           Test args@{ selectedPackage, pure } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, pure, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
             dependencies <- runSpago env (Fetch.run fetchOpts)
@@ -787,8 +862,8 @@ mkBundleEnv bundleArgs { dependencies, purs } = do
   let bundleEnv = { esbuild, logOptions, rootPath, workspace: newWorkspace, selected, bundleOptions, purs, dependencies }
   pure bundleEnv
 
-mkRunEnv :: forall a b. RunArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
-mkRunEnv runArgs { dependencies, purs } = do
+mkRunEnv :: forall a b. RunArgs -> Build.BuildEnv b -> Maybe GlobalPath -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
+mkRunEnv runArgs { dependencies, purs } executeDir = do
   { workspace, logOptions, rootPath } <- ask
   logDebug $ "Run args: " <> show runArgs
 
@@ -824,7 +899,7 @@ mkRunEnv runArgs { dependencies, purs } = do
     runOptions =
       { moduleName
       , execArgs
-      , executeDir: Path.toGlobal rootPath
+      , executeDir: fromMaybe (Path.toGlobal rootPath) executeDir
       , successMessage: Nothing
       , failureMessage: "Running failed."
       }

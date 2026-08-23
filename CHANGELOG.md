@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Features:
+* Reinstate `spago script` for running standalone PureScript files with package-set and dependency options
+
 Bugfixes:
 * Accept any 2xx status code (not just `200`) as success when calling the Registry API, so that publishing no longer fails when the registry responds with `201 Created`
 * Fix flaky `SQLITE_IOERR_TRUNCATE` on Windows when multiple spago processes connect concurrently to the cache DB, by skipping `PRAGMA journal_mode = WAL` when it's already enabled (WAL mode is persistent in the DB file header) and tolerating the race on the initial set
