@@ -4,7 +4,7 @@ module Docs.Search.App.SearchField where
 
 import Prelude
 
-import CSS (border, borderRadius, color, em, float, floatLeft, fontWeight, lineHeight, marginBottom, marginLeft, paddingBottom, paddingLeft, paddingRight, paddingTop, pct, px, rgb, solid, weight, width)
+import CSS (backgroundColor, border, borderRadius, color, em, float, floatLeft, fontWeight, lineHeight, marginBottom, marginLeft, paddingBottom, paddingLeft, paddingRight, paddingTop, pct, px, rgb, solid, weight, white, width)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (wrap)
 import Docs.Search.URIHash as URIHash
@@ -172,6 +172,7 @@ render state =
               pursuitColor = rgb 0x1d 0x22 0x2d
               rds = px 3.0
 
+            backgroundColor white
             border solid (px 1.0) pursuitColor
             borderRadius rds rds rds rds
             color pursuitColor
