@@ -82,9 +82,9 @@ export function removePackagesFromConfigImpl(doc, isTest, shouldRemove) {
 //
 // This function updates dependencies with ranges from rangesMap:
 // - Scalars are converted to maps if a range is found
-// - Existing maps are updated with the new range if one is provided
+// - Existing maps are preserved unless overwrite is explicitly enabled
 // - Dependencies not in rangesMap are preserved unchanged
-function updateDepsWithRanges(doc, deps, rangesMap) {
+function updateDepsWithRanges(doc, deps, rangesMap, overwrite) {
   if (!deps || !deps.items) return;
 
   let newItems = [];
@@ -93,7 +93,7 @@ function updateDepsWithRanges(doc, deps, rangesMap) {
       // Already has a version range - check if we have an updated range
       const packageName = el.items[0].key.value;
       const range = rangesMap[packageName];
-      if (range) {
+      if (overwrite && range) {
         // Update with new range
         let newEl = new Map();
         newEl.set(packageName, range);
@@ -122,13 +122,13 @@ function updateDepsWithRanges(doc, deps, rangesMap) {
 }
 
 // Add version ranges to package.dependencies
-export function addRangesToConfigImpl(doc, rangesMap) {
+export function addRangesToConfigImpl(doc, rangesMap, overwrite) {
   const deps = doc.get("package").get("dependencies");
-  updateDepsWithRanges(doc, deps, rangesMap);
+  updateDepsWithRanges(doc, deps, rangesMap, overwrite);
 }
 
 // Add version ranges to package.test.dependencies.
-export function addTestRangesToConfigImpl(doc, rangesMap) {
+export function addTestRangesToConfigImpl(doc, rangesMap, overwrite) {
   const test = doc.get("package").get("test");
   // in the above variant we don't test for the existence of dependencies, because
   // they must always exist. We are not guaranteed the existence of the test section,
@@ -136,7 +136,7 @@ export function addTestRangesToConfigImpl(doc, rangesMap) {
   if (!test) return;
 
   const deps = test.get("dependencies");
-  updateDepsWithRanges(doc, deps, rangesMap);
+  updateDepsWithRanges(doc, deps, rangesMap, overwrite);
 }
 
 // Note: this function assumes a few things:

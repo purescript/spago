@@ -108,6 +108,14 @@ spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
         postConfig `shouldNotContain` "assert:"
         postConfig `shouldContain` "test:"
 
+        -- Explicit test ranges must still be updated by upgrade.
+        FS.writeTextFile (testCwd </> "spago.yaml") $
+          String.replace (String.Pattern "- assert") (String.Replacement "- assert: \">=5.0.0 <5.0.1\"") postConfig
+        spago [ "upgrade" ] >>= shouldBeSuccess
+        upgradedConfig <- FS.readTextFile (testCwd </> "spago.yaml")
+        upgradedConfig `shouldContain` "assert: \">=5.0.0"
+        upgradedConfig `shouldNotContain` "<5.0.1"
+
         -- Verify project still builds after upgrade
         spago [ "build" ] >>= shouldBeSuccess
 
