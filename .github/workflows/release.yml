@@ -60,9 +60,6 @@ jobs:
           node ./bin/bundle.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        env:
-          # Tests launch concurrent compilers; don't let each use every CPU.
-          GHCRTS: -N1
         run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 
       - name: Release

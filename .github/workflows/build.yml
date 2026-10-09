@@ -93,9 +93,6 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ runner.os == 'Windows' && env.DEV_DRIVE_WORKSPACE || '.' }}
-        env:
-          # Tests launch concurrent compilers; don't let each use every CPU.
-          GHCRTS: -N1
         run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 
       - name: Check formatting (Linux only)
