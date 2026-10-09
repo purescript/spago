@@ -1,8 +1,7 @@
-import mm from 'micromatch';
 import picomatch from 'picomatch';
 import * as fsWalk from '@nodelib/fs.walk';
 
-export const testGlob = glob => mm.matcher(glob.include, { ignore: glob.ignore });
+export const testGlob = glob => picomatch(glob.include, { ignore: glob.ignore });
 
 export const fsWalkImpl = Left => Right => respond => options => path => () => {
   const entryFilter = entry => options.entryFilter(entry)();
