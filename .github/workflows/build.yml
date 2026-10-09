@@ -56,7 +56,7 @@ jobs:
             ${{ runner.os }}-
 
       - name: Install global NPM packages
-        run: npm i --global purescript@0.15.15 spago@latest purs-tidy@latest esbuild@latest
+        run: npm i --global purescript@0.15.16 spago@latest purs-tidy@latest esbuild@latest
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v4
@@ -93,6 +93,9 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ runner.os == 'Windows' && env.DEV_DRIVE_WORKSPACE || '.' }}
+        env:
+          # Tests launch concurrent compilers; don't let each use every CPU.
+          GHCRTS: -N1
         run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 
       - name: Check formatting (Linux only)
