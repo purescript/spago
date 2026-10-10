@@ -93,6 +93,9 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ runner.os == 'Windows' && env.DEV_DRIVE_WORKSPACE || '.' }}
+        env:
+          # Parallel integration tests overwhelm the hosted macOS runner.
+          SPAGO_TEST_SEQUENTIAL: ${{ runner.os == 'macOS' && '1' || '0' }}
         run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 
       - name: Check formatting (Linux only)
