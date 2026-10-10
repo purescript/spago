@@ -32,9 +32,8 @@
     "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago,core/spago}.yaml && git add {spago,bin/spago,core/spago}.yaml",
     "format": "purs-tidy format-in-place core src bin docs-search test",
     "format:check": "purs-tidy check core src bin docs-search test",
-    "fix-bundle": "node -e \"require('fs').writeFileSync('bin/bundle.js',require('fs').readFileSync('bin/bundle.js','utf8').replace('#!/usr/bin/env node','#!/usr/bin/env -S node --no-warnings=ExperimentalWarning'))\"",
-    "bundle": "spago bundle -p spago-bin && npm run fix-bundle",
-    "prepublishOnly": "spago build && ./bin/index.dev.js bundle -p spago-bin && npm run fix-bundle && ./bin/index.dev.js bundle -p docs-search-client-halogen",
+    "bundle": "spago bundle -p spago-bin",
+    "prepublishOnly": "spago build && ./bin/index.dev.js bundle -p spago-bin && ./bin/index.dev.js bundle -p docs-search-client-halogen",
     "halogen:dev": "./bin/index.dev.js bundle -p docs-search-client-halogen --outfile=./generated-docs/html/docs-search-app.js --bundler-args '--watch=forever' --bundler-args '--servedir=./generated-docs/html'"
   },
   "dependencies": {
@@ -43,8 +42,7 @@
     "fs-extra": "^11.3.0",
     "fuse.js": "^7.1.0",
     "glob": "^11.0.1",
-    "markdown-it": "^14.1.0",
-    "micromatch": "^4.0.8",
+    "markdown-it": "^14.3.2",
     "open": "^10.1.0",
     "picomatch": "^4.0.2",
     "punycode": "^2.3.1",
@@ -53,7 +51,7 @@
     "spdx-expression-parse": "^4.0.0",
     "ssh2": "^1.16.0",
     "supports-color": "^10.0.0",
-    "tar": "^7.4.3",
+    "tar": "^7.5.22",
     "tmp": "^0.2.3",
     "xhr2": "^0.2.1",
     "yaml": "^2.7.0"

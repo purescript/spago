@@ -56,7 +56,7 @@ jobs:
             ${{ runner.os }}-
 
       - name: Install global NPM packages
-        run: npm i --global purescript@0.15.15 spago@latest purs-tidy@latest esbuild@latest
+        run: npm i --global purescript@0.15.16 spago@latest purs-tidy@latest esbuild@latest
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v4
@@ -68,6 +68,9 @@ jobs:
 
       - name: Install NPM dependencies
         run: npm ci
+
+      - name: Test SQLite warning suppression without Node flags
+        run: node --test test/Spago/Db.test.js
 
       - name: Install PureScript dependencies
         run: spago install
@@ -93,6 +96,9 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ runner.os == 'Windows' && env.DEV_DRIVE_WORKSPACE || '.' }}
+        env:
+          # Parallel integration tests overwhelm the hosted macOS runner.
+          SPAGO_TEST_SEQUENTIAL: ${{ runner.os == 'macOS' && '1' || '0' }}
         run: node --no-warnings=ExperimentalWarning ./bin/bundle.js test
 
       - name: Check formatting (Linux only)

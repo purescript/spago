@@ -448,7 +448,7 @@ callRegistry url outputCodec maybeInput = handleError do
   case response of
     Nothing -> pure $ Left $ "Could not reach the registry at " <> url
     Just (Left err) -> pure $ Left $ "Error while calling the registry:\n  " <> Exception.message err
-    Just (Right { status, text }) | status /= 200 -> do
+    Just (Right { status, text }) | status < 200 || status >= 300 -> do
       bodyText <- liftAff text
       pure $ Left $ "Registry did not like this and answered with status " <> show status <> ", got answer:\n  " <> bodyText
     Just (Right { json }) -> do
