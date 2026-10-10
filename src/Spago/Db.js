@@ -1,6 +1,24 @@
-import { DatabaseSync } from "node:sqlite";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
+
+// Load synchronously so we can suppress SQLite's experimental warning without
+// Node flags in the shebang (env -S is not available on every platform).
+const { DatabaseSync } = (() => {
+  const emitWarning = process.emitWarning;
+  process.emitWarning = function (message, type, ...args) {
+    if (
+      type === "ExperimentalWarning" &&
+      message === "SQLite is an experimental feature and might change at any time"
+    ) return;
+    return emitWarning.call(this, message, type, ...args);
+  };
+  try {
+    return createRequire(import.meta.url)("node:sqlite");
+  } finally {
+    process.emitWarning = emitWarning;
+  }
+})();
 
 export const connectImpl = (databasePath, logger) => {
   logger("Connecting to database at " + databasePath);

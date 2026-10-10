@@ -69,6 +69,9 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci
 
+      - name: Test SQLite warning suppression without Node flags
+        run: node --test test/Spago/Db.test.js
+
       - name: Install PureScript dependencies
         run: spago install
 
