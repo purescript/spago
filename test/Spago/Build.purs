@@ -80,9 +80,34 @@ spec sem = Spec.parallel $ Spec.around (withBuildLock sem) do
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--censor-stats" ] >>= shouldBeSuccessErr (fixture "censor-stats-output.txt")
 
-    Spec.it "builds successfully a solver-only package" \{ spago } -> do
+    Spec.it "builds a solver-only package without overwriting explicit dependency constraints (#1423)" \{ spago, testCwd } -> do
       spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
+      let configPath = testCwd </> "spago.yaml"
+      FS.writeTextFile configPath
+        """
+package:
+  name: aaa
+  dependencies:
+    - console
+    - effect: "4.0.0"
+    - prelude: ">=6.0.0 <8.0.0" # Keep support for older versions
+  test:
+    main: Test.Main
+    dependencies:
+      - assert: ">=6.0.0 <7.0.0"
+workspace: {}
+"""
       spago [ "build" ] >>= shouldBeSuccess
+      config <- FS.readTextFile configPath
+      config `shouldContain` "- console:"
+      config `shouldContain` "- effect: \"4.0.0\""
+      config `shouldContain` "- prelude: \">=6.0.0 <8.0.0\" # Keep support for older versions"
+      config `shouldContain` "- assert: \">=6.0.0 <7.0.0\""
+
+      -- Reuse the lockfile, including with explicit range insertion and --pure.
+      for_ [ [ "build" ], [ "build", "--ensure-ranges" ], [ "build", "--pure" ] ] \args -> do
+        spago args >>= shouldBeSuccess
+        FS.readTextFile configPath `Assert.shouldReturn` config
 
     Spec.it "can build with a local custom package set" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess

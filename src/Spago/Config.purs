@@ -792,10 +792,10 @@ rangesToForeignObject = Foreign.fromFoldable
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
 
 addRangesToConfig :: YamlDoc Core.Config -> Map PackageName Range -> Effect Unit
-addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc <<< rangesToForeignObject
+addRangesToConfig doc ranges = runEffectFn3 addRangesToConfigImpl doc (rangesToForeignObject ranges) false
 
 addTestRangesToConfig :: YamlDoc Core.Config -> Map PackageName Range -> Effect Unit
-addTestRangesToConfig doc = runEffectFn2 addTestRangesToConfigImpl doc <<< rangesToForeignObject
+addTestRangesToConfig doc ranges = runEffectFn3 addTestRangesToConfigImpl doc (rangesToForeignObject ranges) false
 
 -- | Convert a map of version constraints to the format expected by addRangesToConfig.
 -- | Nothing values (bare deps) are filtered out - they stay unchanged in the YAML.
@@ -810,11 +810,11 @@ constraintsToRangesObject = Foreign.fromFoldable
 
 -- | Update constraints in package.dependencies. Nothing values are left unchanged.
 addConstraintsToConfig :: YamlDoc Core.Config -> Map PackageName (Maybe Core.VersionConstraint) -> Effect Unit
-addConstraintsToConfig doc = runEffectFn2 addRangesToConfigImpl doc <<< constraintsToRangesObject
+addConstraintsToConfig doc constraints = runEffectFn3 addRangesToConfigImpl doc (constraintsToRangesObject constraints) true
 
 -- | Update constraints in package.test.dependencies. Nothing values are left unchanged.
 addTestConstraintsToConfig :: YamlDoc Core.Config -> Map PackageName (Maybe Core.VersionConstraint) -> Effect Unit
-addTestConstraintsToConfig doc = runEffectFn2 addTestRangesToConfigImpl doc <<< constraintsToRangesObject
+addTestConstraintsToConfig doc constraints = runEffectFn3 addTestRangesToConfigImpl doc (constraintsToRangesObject constraints) true
 
 configDocMissingErrorMessage :: String
 configDocMissingErrorMessage = Array.fold
@@ -836,8 +836,8 @@ addOwner configPath doc (Owner { id, keytype, public }) = do
 foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
-foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
-foreign import addTestRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
+foreign import addRangesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) (Foreign.Object String) Boolean Unit
+foreign import addTestRangesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) (Foreign.Object String) Boolean Unit
 foreign import addPublishLocationToConfigImpl :: EffectFn2 (YamlDoc Core.Config) JSON Unit
 foreign import addOwnerImpl :: EffectFn2 (YamlDoc Core.Config) OwnerJS Unit
 foreign import migrateV1ConfigImpl :: forall a. YamlDoc a -> Nullable (YamlDoc Core.Config)
