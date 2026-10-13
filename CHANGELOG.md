@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-10-13
+
 Bugfixes:
 * Preserve explicit dependency ranges and exact versions when adding missing ranges in solver mode or with `--ensure-ranges` (#1423)
 * Fix startup on NetBSD and other systems whose `env` does not support `-S`, while continuing to suppress Node.js's experimental SQLite warning (#1418).
