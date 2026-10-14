@@ -4,7 +4,7 @@ module Docs.Search.App.SearchField where
 
 import Prelude
 
-import CSS (border, borderRadius, color, em, float, floatLeft, fontWeight, lineHeight, marginBottom, marginLeft, paddingBottom, paddingLeft, paddingRight, paddingTop, pct, px, rgb, solid, weight, width)
+import CSS (em, float, floatLeft, lineHeight, marginBottom, marginLeft, pct, px, width)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (wrap)
 import Docs.Search.URIHash as URIHash
@@ -144,7 +144,8 @@ withSearchField cont = do
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div
-    [ HS.style do
+    [ HP.class_ (wrap "top-banner__form")
+    , HS.style do
         float floatLeft
         lineHeight (px 90.0)
         marginBottom (px 0.0)
@@ -166,21 +167,5 @@ render state =
         , HE.onValueInput InputAction
         , HE.onFocusIn $ const $ FocusChanged true
         , HE.onFocusOut $ const $ FocusChanged false
-        , HS.style do
-
-            let
-              pursuitColor = rgb 0x1d 0x22 0x2d
-              rds = px 3.0
-
-            border solid (px 1.0) pursuitColor
-            borderRadius rds rds rds rds
-            color pursuitColor
-            fontWeight $ weight 300.0
-            lineHeight $ em 2.0
-            paddingLeft $ em 0.8
-            paddingRight $ em 0.21
-            paddingTop $ em 0.512
-            paddingBottom $ em 0.512
-            width $ pct 100.0
         ]
     ]

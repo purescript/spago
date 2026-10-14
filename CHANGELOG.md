@@ -15,6 +15,7 @@ Bugfixes:
 * Accept any 2xx status code (not just `200`) as success when calling the Registry API, so that publishing no longer fails when the registry responds with `201 Created`
 * Fix flaky `SQLITE_IOERR_TRUNCATE` on Windows when multiple spago processes connect concurrently to the cache DB, by skipping `PRAGMA journal_mode = WAL` when it's already enabled (WAL mode is persistent in the DB file header) and tolerating the race on the initial set
 * Retry transient network failures (connection errors and 5xx responses) when fetching package tarballs and calling the registry API, instead of failing immediately
+* Match Pursuit's styles for search input (by re-using `top-banner__form` class) so text is legible in dark color scheme
 
 ## [1.0.4] - 2026-03-30
 
