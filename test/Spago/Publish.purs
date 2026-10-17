@@ -10,6 +10,7 @@ import Node.Process as Process
 import Spago.FS as FS
 import Test.Spec (Spec)
 import Test.Spec as Spec
+import Test.Spec.Assertions.String (shouldContain)
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
@@ -69,12 +70,15 @@ spec = Spec.around withTempDir do
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/ready.txt")
 
-    Spec.it "allows to publish with a test dependency not in the registry" \{ spago, fixture, testCwd } -> do
+    Spec.it "allows to publish with pedantic test dependencies not in the registry" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/extra-package-test", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing testCwd
       spago [ "fetch" ] >>= shouldBeSuccess
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/ready.txt")
+      result <- spago [ "publish", "--offline" ]
+      shouldBeFailure result
+      either _.stderr _.stderr result `shouldContain` "Ready for publishing. Calling the registry.."
+      either _.stderr _.stderr result `shouldContain` "Spago is offline - not able to call the Registry."
 
     Spec.it "#1307 allows other non-published projects to reference local project in the workspace" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/1307-publish-dependencies", dst: testCwd }

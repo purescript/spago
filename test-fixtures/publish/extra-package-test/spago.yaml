@@ -6,6 +6,7 @@ package:
     - prelude: ">=6.0.2 <7.0.0"
   test:
     main: Test.Main
+    pedanticPackages: true
     dependencies:
       - maybe
   publish:
