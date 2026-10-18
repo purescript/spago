@@ -715,9 +715,6 @@ getTransitiveDeps workspacePackage = do
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
     Left _ -> case workspace.packageSet.buildType of
       RegistrySolverBuild extraPackages -> do
-        -- Source and tests compile together and the lockfile stores one version
-        -- per package. Solve their constraints together, then split the plan by
-        -- reachability so test-only dependencies do not become core dependencies.
         combinedRanges <- forWithIndex
           (Map.unionWith (\a b -> join $ Range.intersect <$> a <*> b) (map Just depsRanges.core) (map Just depsRanges.test))
           \name range -> case range, Map.lookup name extraPackages of
@@ -734,9 +731,7 @@ getTransitiveDeps workspacePackage = do
         depsRanges # onEachEnvM \ranges ->
           getTransitiveDepsFromPackageSet packages (Array.fromFoldable $ Map.keys ranges)
         where
-        incompatibleRanges name = die
-          $ "Source and test dependency constraints do not overlap for package "
-          <> PackageName.print name
+        incompatibleRanges name = die $ "Source and test dependency constraints do not overlap for package " <> PackageName.print name
 
       PackageSetBuild _info set ->
         do
