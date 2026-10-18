@@ -9,4 +9,8 @@ package:
     main: Test.Main
     dependencies: []
 workspace:
-  extraPackages: {}
+  extraPackages:
+    console: 6.1.0
+    effect: 4.0.0
+    either: 6.1.0
+    prelude: 6.0.2

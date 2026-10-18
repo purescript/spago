@@ -715,22 +715,28 @@ getTransitiveDeps workspacePackage = do
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
     Left _ -> case workspace.packageSet.buildType of
       RegistrySolverBuild extraPackages -> do
+        -- Source and tests compile together and the lockfile stores one version
+        -- per package. Solve their constraints together, then split the plan by
+        -- reachability so test-only dependencies do not become core dependencies.
+        combinedRanges <- forWithIndex
+          (Map.unionWith (\a b -> join $ Range.intersect <$> a <*> b) (map Just depsRanges.core) (map Just depsRanges.test))
+          \name range -> case range, Map.lookup name extraPackages of
+            Just r, _ -> pure r
+            Nothing, Just (RegistryVersion _) -> incompatibleRanges name
+            Nothing, Just _ -> pure Config.widestRange
+            Nothing, Nothing -> incompatibleRanges name
+        plan <- getTransitiveDepsFromRegistry combinedRanges extraPackages
+        logDebug $ "Got a plan from the Solver for source and test deps: "
+          <> printJson (Internal.Codec.packageMap Version.codec) plan
         let
-          forEnv envName depsRanges' = do
-            plan <- getTransitiveDepsFromRegistry depsRanges' extraPackages
-            logDebug $ Array.fold
-              [ "Got a plan from the Solver for "
-              , envName
-              , " deps: "
-              , printJson (Internal.Codec.packageMap Version.codec) plan
-              ]
-            pure $ plan # Map.mapMaybeWithKey \packageName version -> case Map.lookup packageName extraPackages of
-              Just p -> Just p
-              Nothing -> Just $ RegistryVersion version
-
-        { core: _, test: _ }
-          <$> forEnv "core" depsRanges.core
-          <*> forEnv "test" depsRanges.test
+          packages = plan # mapWithIndex \name version ->
+            fromMaybe (RegistryVersion version) (Map.lookup name extraPackages)
+        depsRanges # onEachEnvM \ranges ->
+          getTransitiveDepsFromPackageSet packages (Array.fromFoldable $ Map.keys ranges)
+        where
+        incompatibleRanges name = die
+          $ "Source and test dependency constraints do not overlap for package "
+          <> PackageName.print name
 
       PackageSetBuild _info set ->
         do
@@ -974,4 +980,3 @@ onEachEnv f e = e { core = f e.core, test = f e.test }
 
 onEachEnvM :: ∀ m a b. Apply m => (a -> m b) -> ByEnv a -> m (ByEnv b)
 onEachEnvM f e = e { core = _, test = _ } <$> f e.core <*> f e.test
-

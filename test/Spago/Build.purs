@@ -109,6 +109,21 @@ workspace: {}
         spago args >>= shouldBeSuccess
         FS.readTextFile configPath `Assert.shouldReturn` config
 
+      -- Explicit test constraints must intersect source constraints, not replace
+      -- them. An empty intersection must fail instead of becoming unconstrained.
+      let
+        withTestEffect constraint = String.replace
+          (String.Pattern "      - assert:")
+          (String.Replacement $ "      - effect: \"" <> constraint <> "\"\n      - assert:")
+          config
+      FS.writeTextFile configPath $ withTestEffect ">=4.0.0 <5.0.0"
+      spago [ "build" ] >>= shouldBeSuccess
+      FS.writeTextFile configPath $ withTestEffect "4.0.1"
+      result <- spago [ "build" ]
+      shouldBeFailure result
+      either _.stderr _.stderr result `shouldContain`
+        "Source and test dependency constraints do not overlap for package effect"
+
     Spec.it "can build with a local custom package set" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       FS.unlink (testCwd </> "spago.yaml")

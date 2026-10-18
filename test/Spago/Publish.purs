@@ -5,6 +5,8 @@ module Test.Spago.Publish
 
 import Test.Prelude
 
+import Data.Array as Array
+import Data.String as String
 import Node.Platform as Platform
 import Node.Process as Process
 import Spago.FS as FS
@@ -13,7 +15,7 @@ import Test.Spec as Spec
 import Test.Spec.Assertions.String (shouldContain)
 
 spec :: Spec Unit
-spec = Spec.around withTempDir do
+spec = Spec.before_ warmSolverCache $ Spec.around withTempDir do
   Spec.describe "publish" do
 
     Spec.it "fails if the version bounds or publish config are not specified" \{ spago, fixture } -> do
@@ -68,7 +70,7 @@ spec = Spec.around withTempDir do
       doTheGitThing testCwd
       -- It will fail because it can't hit the registry, but the fixture will check that everything else is ready
       spago [ "fetch" ] >>= shouldBeSuccess
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/ready.txt")
+      spago [ "publish", "--offline" ] >>= shouldBePublishFailure (fixture "publish/ready.txt")
 
     Spec.it "allows to publish with pedantic test dependencies not in the registry" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/extra-package-test", dst: testCwd }
@@ -88,17 +90,9 @@ spec = Spec.around withTempDir do
       -- Refresh the registry cache timestamp because Windows CI is slow enough
       -- that it can go stale (>15min) between earlier tests and this one
       spago [ "registry", "package-sets" ] >>= shouldBeSuccess
-      spago [ "publish", "-p", "root", "--offline" ] >>= shouldBeFailureErr (fixture "publish/1307-publish-dependencies/expected-stderr.txt")
+      spago [ "publish", "-p", "root", "--offline" ] >>= shouldBePublishFailure (fixture "publish/1307-publish-dependencies/expected-stderr.txt")
 
     Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture, testCwd } -> do
-      let
-        shouldBeFailureErr' file = checkOutputs'
-          { stdoutFile: Nothing
-          , stderrFile: Just file
-          , result: isLeft
-          , sanitize: sanitizePlatformOutput >>> normalizeCompileOrder 3
-          }
-
       FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing testCwd
@@ -110,7 +104,7 @@ spec = Spec.around withTempDir do
       FS.exists (testCwd </> ".spago/p/console-6.0.0") >>= (_ `shouldEqual` true)
       FS.exists (testCwd </> ".spago/p/console-6.1.0") >>= (_ `shouldEqual` false)
 
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/expected-stderr.txt")
+      spago [ "publish", "--offline" ] >>= shouldBePublishFailure (fixture "publish/1110-solver-different-version/expected-stderr.txt")
 
       -- When `publish` runs, it uses the registry solver, which returns
       -- `console-6.1.0` version, so `publish` should fetch that into local
@@ -122,7 +116,7 @@ spec = Spec.around withTempDir do
       -- happens on publish.
       FS.unlink $ testCwd </> ".spago/p/console-6.1.0/src/Effect/Console.js"
       rmRf $ testCwd </> ".spago/p/console-6.1.0/output"
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/failure-stderr.txt")
+      spago [ "publish", "--offline" ] >>= shouldBePublishFailure (fixture "publish/1110-solver-different-version/failure-stderr.txt")
 
     Spec.describe "#1060 auto-filling the `publish.location` field" do
       let
@@ -171,6 +165,27 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing testCwd
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/1109-tag-mismatch/expected-stderr.txt")
+
+-- Offline publishing solves independently of the fixtures' package sets. Fetch
+-- the solver's versions into the global cache without populating any test's
+-- local cache (in particular, the one exercised by the #1110 regression).
+warmSolverCache :: Aff Unit
+warmSolverCache = withTempDir \{ spago } -> do
+  spago [ "init", "--name", "publish-cache", "--use-solver" ] >>= shouldBeSuccess
+  spago [ "install", "maybe" ] >>= shouldBeSuccess
+
+-- Registry updates can change which modules need recompilation, but not the
+-- diagnostics or publishing outcome these snapshots assert.
+shouldBePublishFailure :: FixturePath -> Either ExecResult ExecResult -> Aff Unit
+shouldBePublishFailure file = checkOutputs'
+  { stdoutFile: Nothing
+  , stderrFile: Just file
+  , result: isLeft
+  , sanitize: sanitizePlatformOutput
+      >>> String.split (String.Pattern "\n")
+      >>> Array.filter (not <<< String.contains (String.Pattern "] Compiling "))
+      >>> String.joinWith "\n"
+  }
 
 doTheGitThing :: RootPath -> Aff Unit
 doTheGitThing root = do
