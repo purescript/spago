@@ -974,4 +974,3 @@ onEachEnv f e = e { core = f e.core, test = f e.test }
 
 onEachEnvM :: ∀ m a b. Apply m => (a -> m b) -> ByEnv a -> m (ByEnv b)
 onEachEnvM f e = e { core = _, test = _ } <$> f e.core <*> f e.test
-

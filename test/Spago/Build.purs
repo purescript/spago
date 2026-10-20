@@ -94,6 +94,7 @@ package:
   test:
     main: Test.Main
     dependencies:
+      - effect: ">=4.0.0 <4.0.1"
       - assert: ">=6.0.0 <7.0.0"
 workspace: {}
 """
