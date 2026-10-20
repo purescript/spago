@@ -715,23 +715,22 @@ getTransitiveDeps workspacePackage = do
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
     Left _ -> case workspace.packageSet.buildType of
       RegistrySolverBuild extraPackages -> do
-        combinedRanges <- forWithIndex
-          (Map.unionWith (\a b -> join $ Range.intersect <$> a <*> b) (map Just depsRanges.core) (map Just depsRanges.test))
-          \name range -> case range, Map.lookup name extraPackages of
-            Just r, _ -> pure r
-            Nothing, Just (RegistryVersion _) -> incompatibleRanges name
-            Nothing, Just _ -> pure Config.widestRange
-            Nothing, Nothing -> incompatibleRanges name
-        plan <- getTransitiveDepsFromRegistry combinedRanges extraPackages
-        logDebug $ "Got a plan from the Solver for source and test deps: "
-          <> printJson (Internal.Codec.packageMap Version.codec) plan
         let
-          packages = plan # mapWithIndex \name version ->
-            fromMaybe (RegistryVersion version) (Map.lookup name extraPackages)
-        depsRanges # onEachEnvM \ranges ->
-          getTransitiveDepsFromPackageSet packages (Array.fromFoldable $ Map.keys ranges)
-        where
-        incompatibleRanges name = die $ "Source and test dependency constraints do not overlap for package " <> PackageName.print name
+          forEnv envName depsRanges' = do
+            plan <- getTransitiveDepsFromRegistry depsRanges' extraPackages
+            logDebug $ Array.fold
+              [ "Got a plan from the Solver for "
+              , envName
+              , " deps: "
+              , printJson (Internal.Codec.packageMap Version.codec) plan
+              ]
+            pure $ plan # Map.mapMaybeWithKey \packageName version -> case Map.lookup packageName extraPackages of
+              Just p -> Just p
+              Nothing -> Just $ RegistryVersion version
+
+        { core: _, test: _ }
+          <$> forEnv "core" depsRanges.core
+          <*> forEnv "test" depsRanges.test
 
       PackageSetBuild _info set ->
         do

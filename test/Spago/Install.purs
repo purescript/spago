@@ -264,7 +264,6 @@ spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
 
     Spec.it "adds version ranges automatically for solver-based projects" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
-      -- Fix solver inputs so registry releases do not change the expected ranges.
       let configPath = testCwd </> "spago.yaml"
       config <- FS.readTextFile configPath
       FS.writeTextFile configPath $ String.replace

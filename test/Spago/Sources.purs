@@ -14,7 +14,7 @@ spec = Spec.parallel $ Spec.around withTempDir do
   Spec.describe "sources" do
 
     Spec.it "contains project and subproject sources" \{ spago, fixture, testCwd } -> do
-      spago [ "init" ] >>= shouldBeSuccess
+      spago [ "init", "--package-set", "63.3.0" ] >>= shouldBeSuccess
 
       -- contains both dependencies and project sources
       let
