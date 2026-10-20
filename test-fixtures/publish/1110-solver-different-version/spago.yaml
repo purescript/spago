@@ -4,6 +4,12 @@ package:
     - console: ">=6.1.0 <6.1.1"
     - effect: ">=4.0.0 <4.0.1"
     - prelude: ">=6.0.2 <6.0.3"
+    - maybe: ">=6.0.0 <6.0.1"
+    - control: ">=6.0.0 <6.0.1"
+    - invariant: ">=6.0.0 <6.0.1"
+    - newtype: ">=5.0.0 <5.0.1"
+    - safe-coerce: ">=2.0.0 <2.0.1"
+    - unsafe-coerce: ">=6.0.0 <6.0.1"
   publish:
     version: 0.0.1
     license: MIT
