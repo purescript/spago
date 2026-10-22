@@ -8,3 +8,4 @@ Reading Spago workspace configuration...
   - bar-bar-bar
   - effcet (did you mean: effect)
   - foo-foo-foo
+To list available packages use `spago ls packages`
