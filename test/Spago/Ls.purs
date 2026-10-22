@@ -10,11 +10,11 @@ spec locks = Spec.parallel $ Spec.around (withBuildLock locks) do
   Spec.describe "ls" do
 
     Spec.it "direct dependencies" \{ spago, fixture } -> do
-      spago [ "init" ] >>= shouldBeSuccess
+      spago [ "init", "--package-set", "63.3.0" ] >>= shouldBeSuccess
       spago [ "ls", "deps" ] >>= shouldBeSuccessOutput (fixture "list-dependencies.txt")
 
     Spec.it "direct dependencies in JSON, and requires selecting a package when many are present" \{ spago, fixture, testCwd } -> do
-      spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "aaa", "--package-set", "63.3.0" ] >>= shouldBeSuccess
       _ <- makeSubpackage testCwd { name: "subpackage", moduleName: "Subpackage" }
       spago [ "install", "-p", "aaa", "subpackage" ] >>= shouldBeSuccess
       spago [ "ls", "deps", "-p", "aaa", "--json" ] >>= shouldBeSuccessOutput (fixture "list-dependencies.json")
