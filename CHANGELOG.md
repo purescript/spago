@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+* Fix `halogen:dev` script (#1427)
+
 ## [1.0.5] - 2026-10-13
 
 Bugfixes:

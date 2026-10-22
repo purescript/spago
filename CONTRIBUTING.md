@@ -69,6 +69,26 @@ SPAGO_TEST_DEBUG=1 spago
 SPAGO_TEST_ACCEPT=1 spago
 ```
 
+## Developing the `spago docs` Halogen app
+
+The `spago docs` command generates a "project-local Pursuit"--package docs as HTML files. The docs HTML also includes a `docs-search-app.js` for search functionality, and that is a compiled Halogen app. The source for the app is in `docs-search/client-halogen`. To develop that locally, run the same install and bootstrap scripts as above
+
+```shell
+npm ci
+spago bundle -p spago-bin
+```
+
+then generate the initial app bundle and Spago's own docs
+
+```bash
+./bin/index.dev.js bundle -p docs-search-client-halogen
+./bin/index.dev.js docs
+```
+
+That will output a link like `file://path/to/spago/generated-docs/html/index.html` where you can view the generated docs. Then run `npm run halogen:dev`, make edits to `docs-search/client-halogen`, and reload the browser to see changes.
+
+The script bundles the Halogen app in watch mode, so it updates whenever `output/` changes (which happens on edit, if your editor has the language server installed).
+
 ## Developing docs
 
 If you edit any title in the readme, run `doctoc` to update the Table of Contents:
