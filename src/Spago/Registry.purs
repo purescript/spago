@@ -476,6 +476,8 @@ waitForJobFinish { jobId, jobType } = go Nothing
       url = baseApi <> Duplex.print V1.routes
         ( V1.Job jobId
             { since: lastTimestamp >>= DateTime.adjust (Milliseconds 1.0)
+            , until: Nothing
+            , order: Nothing
             , level: case logOptions.verbosity of
                 LogVerbose -> Just V1.Debug
                 _ -> Just V1.Info

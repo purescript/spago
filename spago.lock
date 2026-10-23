@@ -993,7 +993,7 @@
       },
       "registry-lib": {
         "git": "https://github.com/purescript/registry-dev.git",
-        "ref": "3e8af27822b9d1ac8bfb158cdad08bcf6e6ec8be",
+        "ref": "ae82f2ef9624cd7322ff34d841ec69dd4cb7bde0",
         "subdir": "lib"
       },
       "search-trie": {
@@ -2749,7 +2749,7 @@
     "registry-lib": {
       "type": "git",
       "url": "https://github.com/purescript/registry-dev.git",
-      "rev": "3e8af27822b9d1ac8bfb158cdad08bcf6e6ec8be",
+      "rev": "ae82f2ef9624cd7322ff34d841ec69dd4cb7bde0",
       "subdir": "lib",
       "dependencies": [
         "aff",

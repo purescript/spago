@@ -5,6 +5,8 @@ module Test.Spago.Publish
 
 import Test.Prelude
 
+import Data.Array as Array
+import Data.String as String
 import Node.Platform as Platform
 import Node.Process as Process
 import Spago.FS as FS
@@ -62,6 +64,8 @@ spec = Spec.around withTempDir do
 
     Spec.it "can get a package ready to publish" \{ spago, fixture, testCwd } -> do
       FS.copyFile { src: fixture "publish/basic.yaml", dst: testCwd </> "spago.yaml" }
+      editSpagoYaml' (testCwd </> "spago.yaml") \config -> config
+        { package = config.package <#> _ { description = Just $ String.joinWith "" $ Array.replicate 500 "x" } }
       FS.mkdirp $ testCwd </> "src"
       FS.copyFile { src: fixture "publish/basic.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess

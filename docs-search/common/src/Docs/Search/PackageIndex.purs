@@ -17,6 +17,7 @@ import Docs.Search.Score (Scores, getPackageScoreForPackageName)
 import Docs.Search.Types (PackageScore)
 import Docs.Search.Types as Package
 import Effect.Aff (Aff)
+import Registry.LimitedString as LimitedString
 import Registry.Location (Location)
 import Registry.Location as Location
 import Registry.Manifest (Manifest(..))
@@ -67,7 +68,7 @@ mkPackageInfo packageScores pms =
     Map.insert
       name
       { name
-      , description
+      , description: map LimitedString.print description
       , score: getPackageScoreForPackageName packageScores name
       , dependencies: Array.fromFoldable $ Map.keys dependencies
       , repository: location
