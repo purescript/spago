@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Bugfixes:
+* Update registry-lib to accept package descriptions up to 500 characters, fixing installation of packages whose index contains descriptions longer than 300 characters.
 * Fix `halogen:dev` script (#1427)
 
 ## [1.0.5] - 2026-10-13
