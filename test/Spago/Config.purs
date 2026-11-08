@@ -55,7 +55,7 @@ spec = Spec.parallel $
         ( "$.package.publish.license: Could not decode PackageConfig:"
             <> "\n  Could not decode PublishConfig:"
             <> "\n    Could not decode License:"
-            <> "\n      Invalid SPDX identifier bogus"
+            <> "\n      Invalid SPDX expression 'bogus': Unexpected `b` at offset 0"
         )
 
     Spec.describe "reports unrecognized fields" do
