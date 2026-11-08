@@ -823,6 +823,22 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
             let deps = widenIfExtra $ fromMaybe Map.empty $ map (_.dependencies <<< unwrap) maybeManifest
             pure (Tuple v deps)
 
+    -- Load each package once, but visit every newly reachable version: different
+    -- dependency paths can require disjoint ranges of the same package.
+    loadIndex known visited = case _ of
+      List.Nil -> pure visited
+      List.Cons (Tuple name range) pending -> do
+        versions <- case Map.lookup name known of
+          Just versions -> pure versions
+          Nothing -> loader name
+        let
+          seen = fromMaybe Map.empty $ Map.lookup name visited
+          fresh = Map.filterKeys (\version -> Range.includes range version && not (Map.member version seen)) versions
+          known' = Map.insert name versions known
+          visited' = Map.insert name (Map.union fresh seen) visited
+          pending' = foldMap Map.toUnfoldable fresh <> pending
+        loadIndex known' visited' pending'
+
   -- Warn when a non-registry extra package's version doesn't match the declared constraint
   for_ (Map.toUnfoldable (Map.intersectionWith Tuple depsRanges extraPackages) :: Array _)
     \(Tuple name (Tuple range pkg)) -> case pkg of
@@ -839,7 +855,8 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
 
   let widenedDepsRanges = widenIfExtra depsRanges
 
-  maybePlan <- Registry.Solver.loadAndSolve loader widenedDepsRanges
+  index <- loadIndex Map.empty Map.empty (Map.toUnfoldable widenedDepsRanges)
+  let maybePlan = Registry.Solver.solve index widenedDepsRanges
 
   case maybePlan of
     Left errs -> die

@@ -13,6 +13,7 @@ import Node.Path as Node.Path
 import Node.Process as Process
 import Record as Record
 import Registry.Internal.Path as Internal.Path
+import Registry.LimitedString as LimitedString
 import Registry.Location as Location
 import Registry.Metadata as Metadata
 import Registry.Operation as Operation
@@ -166,12 +167,17 @@ publish _args = do
               , published: Map.empty
               , unpublished: Map.empty
               }
+        description <- case traverse LimitedString.parse selected.package.description of
+          Left err -> do
+            addError $ toDoc $ "Invalid package description: " <> err
+            pure Nothing
+          Right value -> pure value
         let
           expectedTag = "v" <> Version.print publishConfig.version
           manifest =
             { name
             , location
-            , description: selected.package.description
+            , description
             , dependencies: depsRanges
             , version: publishConfig.version
             , license: publishConfig.license
